@@ -86,7 +86,7 @@ static void setup_screen(void) {
     screen = append_horizontal(screen, CORNER_CHAR, HORIZONTAL_CHAR);
 }
 
-// continually loops until the user input is exit
+// continually loops until the user input is to quit
 static void* handle_input(void* arg) {
     char ch;
     do {
@@ -188,6 +188,18 @@ static inline int move_snake(void) {
     return 0;
 }
 
+// inserts the snake to the screen buffer
+static inline void insert_snake_buf(void) {
+    struct location_t* loc;
+    struct location_t* head = snake_head();
+    board[(CHAR_ROW_WIDTH * (food_loc.row + 2)) + food_loc.col + 1] = FOOD_CHAR;
+    for (int i = 0; i < snake.length; i++) {
+        loc = &snake.locations[(i + snake.offset) % BOARD_SIZE];
+        board[(CHAR_ROW_WIDTH * (loc->row + 2)) + loc->col + 1] =
+            loc->row == head->row && loc->col == head->col ? HEAD_CHAR : BODY_CHAR;
+    }
+}
+
 // clears the board string of all snake identifiers
 static inline void clear_screen_buf(void) {
     struct location_t* loc;
@@ -241,18 +253,10 @@ int make_snake(void) {
 
 // prints the output of the game advancing the snake by 1 location
 int print_snake(void) {
-    char c;
-    struct location_t* loc;
-    struct location_t* head;
     int move = move_snake();
     if (move != SNAKE_GAME_OVER) {
-        head = snake_head();
-        for (int i = 0; i < snake.length; i++) {
-            loc = &snake.locations[(i + snake.offset) % BOARD_SIZE];
-            board[(CHAR_ROW_WIDTH * (loc->row + 2)) + loc->col + 1] =
-                loc->row == head->row && loc->col == head->col ? HEAD_CHAR : BODY_CHAR;
-        }
         board[(CHAR_ROW_WIDTH * (food_loc.row + 2)) + food_loc.col + 1] = FOOD_CHAR;
+        insert_snake_buf();
         print_screen_buf();
         clear_screen_buf();
     }
@@ -262,6 +266,7 @@ int print_snake(void) {
 // cleans up snake resources
 void snake_over(void) {
     pthread_join(input_thread, 0);
+    insert_snake_buf();
     memcpy(&board[(CHAR_ROW_WIDTH * ((BOARD_HEIGHT / 2) + 2)) + (BOARD_WIDTH / 2) + 1
         - (GAME_OVER_MSG_LEN / 2)], GAME_OVER_MSG, GAME_OVER_MSG_LEN);
     print_screen_buf();
