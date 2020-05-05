@@ -270,6 +270,7 @@ void snake_over(void) {
     memcpy(&board[(CHAR_ROW_WIDTH * ((BOARD_HEIGHT / 2) + 2)) + (BOARD_WIDTH / 2) + 1
         - (GAME_OVER_MSG_LEN / 2)], GAME_OVER_MSG, GAME_OVER_MSG_LEN);
     print_screen_buf();
+    sleep(3);
     cbreak();
     getch();
     clear();
