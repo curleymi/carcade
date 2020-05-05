@@ -3,8 +3,8 @@
  *  snake.c
  */
 
-#include "snake.h"
 
+#include "snake.h"
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>

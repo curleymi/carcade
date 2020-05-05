@@ -5,17 +5,41 @@
 
 
 #include "snake.h"
-
 #include <unistd.h>
 
+
+
+// ----- preprocessor definitions ----------------------------------------------
+
+
+// the frequency at which to drive the game/move the snake in microseconds
+#define PRINT_FREQUENCY_US 85000
+
+
+
+// ----- main ------------------------------------------------------------------
+
+
+// main entry - expects no arguments for the time
 int main(int argc, char** argv) {
-    struct snake_t snake;
-    if (make_snake() == SNAKE_GAME_OVER) {
-        return 1;
+    // init the game, on fail do nothing
+    if (make_snake() != SNAKE_GAME_OVER) {
+        // continue printing to drive the game until the game is over
+        while (print_snake() != SNAKE_GAME_OVER) {
+            usleep(PRINT_FREQUENCY_US);
+        }
+
+        // print message and clean up
+        snake_over();
     }
-    while (print_snake() != SNAKE_GAME_OVER) {
-        usleep(85000);
-    }
-    snake_over();
     return 0;
 }
+
+
+
+// ----- end of file -----------------------------------------------------------
+
+
+
+
+
