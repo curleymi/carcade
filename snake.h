@@ -18,25 +18,34 @@
 #define INITIAL_LENGTH 7
 
 // the board metrics
-#define BOARD_WIDTH 60
-#define BOARD_HEIGHT 25
+#define BOARD_WIDTH 40
+#define BOARD_HEIGHT 15
 #define BOARD_SIZE (BOARD_HEIGHT * BOARD_WIDTH)
 
 // the snakes representation
-#define HEAD_CHAR '0'
-#define BODY_CHAR '*'
+#define HEAD_CHAR 'o'
+#define BODY_CHAR '.'
 #define FOOD_CHAR '@'
+
+// the board representation
+#define TITLE_CHAR ' '
+#define CORNER_CHAR '+'
+#define HORIZONTAL_CHAR '-'
+#define VERTICAL_CHAR '|'
+#define SPACE_CHAR ' '
+
+// quit keystroke
 #define QUIT_CHAR 'q'
 
 // title and game over strings
-#define TITLE "CSNAKE"
-#define TITLE_LEN 6
-#define GAME_OVER_MSG "GAME OVER!"
-#define GAME_OVER_MSG_LEN 10
-#define GAME_INFO_FORMAT_DDDC "BOARD: %dx%d   SCORE: %d\n(use arrow keys to move or press \'%c\' to quit)\n"
+#define TITLE " CSNAKE "
+#define TITLE_LEN 8
+#define GAME_OVER_MSG " GAME OVER! "
+#define GAME_OVER_MSG_LEN 12
+#define GAME_INFO_FORMAT_DDDDC "BOARD: %dx%d   SCORE: %d (%d%)\n(use arrow keys to move or press \'%c\' to quit)\n"
 
-// timeout input get every 2/10ths of a second
-#define INPUT_TIMEOUT_DS 2
+// timeout input get every 1/10th of a second
+#define INPUT_TIMEOUT_DS 1
 
 // the character width of the board (leading/trailing edge + \n)
 #define CHAR_ROW_WIDTH (BOARD_WIDTH + 3)

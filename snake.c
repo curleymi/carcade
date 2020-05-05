@@ -1,6 +1,11 @@
 /*
  *  Michael Curley
  *  snake.c
+ *
+ *  notes:
+ *      - requires ncurses compiler flag -lncurses
+ *          (apt-get install libncurses5-dev)
+ *      - requires pthread compiler flag -lpthread
  */
 
 
@@ -52,7 +57,7 @@ static char* append_screen_title(void) {
             i += TITLE_LEN - 1;
         }
         else {
-            *(screen++) = ' ';
+            *(screen++) = TITLE_CHAR;
         }
     }
     *(screen++) = ' ';
@@ -74,11 +79,11 @@ static char* append_horizontal(char* screen, char edge, char fill) {
 // sets up the screen buffer
 static void setup_screen(void) {
     char* screen = append_screen_title();
-    screen = append_horizontal(screen, '+', '-');
+    screen = append_horizontal(screen, CORNER_CHAR, HORIZONTAL_CHAR);
     for (int i = 0; i < BOARD_HEIGHT; i++) {
-        screen = append_horizontal(screen, '|', ' ');
+        screen = append_horizontal(screen, VERTICAL_CHAR, SPACE_CHAR);
     }
-    screen = append_horizontal(screen, '+', '-');
+    screen = append_horizontal(screen, CORNER_CHAR, HORIZONTAL_CHAR);
 }
 
 // continually loops until the user input is exit
@@ -188,15 +193,16 @@ static inline void clear_screen_buf(void) {
     struct location_t* loc;
     for (int i = 0; i < snake.length; i++) {
         loc = &snake.locations[(i + snake.offset) % BOARD_SIZE];
-        board[(CHAR_ROW_WIDTH * (loc->row + 2)) + loc->col + 1] = ' ';
+        board[(CHAR_ROW_WIDTH * (loc->row + 2)) + loc->col + 1] = SPACE_CHAR;
     }
 }
 
 // prints the current screen
 static inline void print_screen_buf(void) {
     char buf[256];
-    sprintf(buf, GAME_INFO_FORMAT_DDDC, BOARD_WIDTH, BOARD_HEIGHT,
-            snake.length, QUIT_CHAR);
+    sprintf(buf, GAME_INFO_FORMAT_DDDDC, BOARD_WIDTH, BOARD_HEIGHT,
+            snake.length, (int)((100.0 * (double)snake.length / (double)BOARD_SIZE) + 0.5),
+            QUIT_CHAR);
     mvaddnstr(0, 0, board, CHAR_BOARD_SIZE);
     mvaddstr(CHAR_ROW_COUNT, 0, buf);
     refresh();
@@ -209,7 +215,9 @@ static inline void print_screen_buf(void) {
 
 // makes a new game
 int make_snake(void) {
-    if (pthread_create(&input_thread, 0, handle_input, 0)) {
+    if (BOARD_WIDTH < 10 || BOARD_HEIGHT < 10 ||
+            INITIAL_LENGTH >= BOARD_WIDTH ||
+            pthread_create(&input_thread, 0, handle_input, 0)) {
         return SNAKE_GAME_OVER;
     }
     srand(time(0) ^ getpid());
