@@ -28,7 +28,6 @@ int main(int argc, char** argv) {
         while (print_snake() != SNAKE_GAME_OVER) {
             usleep(PRINT_FREQUENCY_US);
         }
-
         // print message and clean up
         snake_over();
     }

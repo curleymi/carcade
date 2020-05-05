@@ -195,10 +195,10 @@ static inline void clear_screen_buf(void) {
 // prints the current screen
 static inline void print_screen_buf(void) {
     char buf[256];
-    sprintf(buf, GAME_INFO_FORMAT_DC, snake.length, QUIT_CHAR);
-    clear();
-    addnstr(board, CHAR_BOARD_SIZE);
-    addstr(buf);
+    sprintf(buf, GAME_INFO_FORMAT_DDDC, BOARD_WIDTH, BOARD_HEIGHT,
+            snake.length, QUIT_CHAR);
+    mvaddnstr(0, 0, board, CHAR_BOARD_SIZE);
+    mvaddstr(CHAR_ROW_COUNT, 0, buf);
     refresh();
 }
 
@@ -259,6 +259,8 @@ void snake_over(void) {
     print_screen_buf();
     cbreak();
     getch();
+    clear();
+    refresh();
     endwin();
 }
 
