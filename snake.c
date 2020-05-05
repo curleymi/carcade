@@ -8,8 +8,10 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ncurses.h>
 #include <string.h>
+#include <unistd.h>
 
 
 
@@ -27,6 +29,9 @@ static enum e_direction new_direction;
 
 // the snake structure itself
 static struct snake_t snake;
+
+// the current location of the food
+static struct location_t food_loc;
 
 // bool indicates if game is over
 static int game_over;
@@ -80,7 +85,7 @@ static void setup_screen(void) {
 static void* handle_input(void* arg) {
     char ch;
     do {
-        halfdelay(1);
+        halfdelay(INPUT_TIMEOUT_DS);
         if ((ch = getch()) == '\033') {
             if ((ch = getch()) == '[') {
                 switch ((ch = getch())) {
@@ -99,7 +104,7 @@ static void* handle_input(void* arg) {
                 }
             }
         }
-    } while (ch != 'q' && game_over != SNAKE_GAME_OVER);
+    } while (ch != QUIT_CHAR && game_over != SNAKE_GAME_OVER);
     game_over = SNAKE_GAME_OVER;
     return (void*)0;
 }
@@ -135,6 +140,12 @@ static inline void next_location(struct location_t* head,
     }
 }
 
+// set a new location of the food
+static inline void set_new_food(int row, int col) {
+    food_loc.row = (rand() % (BOARD_HEIGHT - row)) + row;
+    food_loc.col = (rand() % (BOARD_WIDTH - col)) + col;
+}
+
 // moves the snake in the given direction
 static inline int move_snake(void) {
     uint8_t head_row;
@@ -158,7 +169,13 @@ static inline int move_snake(void) {
             return (game_over = SNAKE_GAME_OVER);
         }
     }
-    snake.offset = (snake.offset + 1) % BOARD_SIZE;
+    if (head_row == food_loc.row && head_col == food_loc.col) {
+        snake.length++;
+        set_new_food(0, 0);
+    }
+    else {
+        snake.offset = (snake.offset + 1) % BOARD_SIZE;
+    }
     loc = snake_head();
     loc->row = head_row;
     loc->col = head_col;
@@ -178,7 +195,7 @@ static inline void clear_screen_buf(void) {
 // prints the current screen
 static inline void print_screen_buf(void) {
     char buf[256];
-    sprintf(buf, "SCORE: %d\n", snake.length);
+    sprintf(buf, GAME_INFO_FORMAT_DC, snake.length, QUIT_CHAR);
     clear();
     addnstr(board, CHAR_BOARD_SIZE);
     addstr(buf);
@@ -195,8 +212,11 @@ int make_snake(void) {
     if (pthread_create(&input_thread, 0, handle_input, 0)) {
         return SNAKE_GAME_OVER;
     }
+    srand(time(0) ^ getpid());
     initscr();
     noecho();
+    clear();
+    refresh();
     setup_screen();
     game_over = 0;
     new_direction = e_direction_right;
@@ -207,6 +227,7 @@ int make_snake(void) {
         snake.locations[i].row = 0;
         snake.locations[i].col = i;
     }
+    set_new_food(1, INITIAL_LENGTH);
     return 0;
 }
 
@@ -221,8 +242,9 @@ int print_snake(void) {
         for (int i = 0; i < snake.length; i++) {
             loc = &snake.locations[(i + snake.offset) % BOARD_SIZE];
             board[(CHAR_ROW_WIDTH * (loc->row + 2)) + loc->col + 1] =
-                loc->row == head->row && loc->col == head->col ? 'X' : '0';
+                loc->row == head->row && loc->col == head->col ? HEAD_CHAR : BODY_CHAR;
         }
+        board[(CHAR_ROW_WIDTH * (food_loc.row + 2)) + food_loc.col + 1] = FOOD_CHAR;
         print_screen_buf();
         clear_screen_buf();
     }

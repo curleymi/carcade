@@ -15,18 +15,28 @@
 
 
 // the initial length of the snake
-#define INITIAL_LENGTH 20
+#define INITIAL_LENGTH 7
 
 // the board metrics
-#define BOARD_WIDTH 80
-#define BOARD_HEIGHT 40
+#define BOARD_WIDTH 50
+#define BOARD_HEIGHT 25
 #define BOARD_SIZE (BOARD_HEIGHT * BOARD_WIDTH)
+
+// the snakes representation
+#define HEAD_CHAR '0'
+#define BODY_CHAR '*'
+#define FOOD_CHAR '@'
+#define QUIT_CHAR 'q'
 
 // title and game over strings
 #define TITLE "CSNAKE"
 #define TITLE_LEN 6
 #define GAME_OVER_MSG "GAME OVER!"
 #define GAME_OVER_MSG_LEN 10
+#define GAME_INFO_FORMAT_DC "SCORE: %d   (press \'%c\' to quit)\n"
+
+// timeout input get every 2/10ths of a second
+#define INPUT_TIMEOUT_DS 2
 
 // the character width of the board (leading/trailing edge + \n)
 #define CHAR_ROW_WIDTH (BOARD_WIDTH + 3)
