@@ -17,6 +17,8 @@
 static struct tron_t {
     char player1_char;
     char player2_char;
+    char vertical_char;
+    char horizontal_char;
     enum e_keystroke player1_dir;
     enum e_keystroke player2_dir;
     struct location_t player1_loc;
@@ -72,7 +74,7 @@ static inline int advance_player(struct location_t* loc, enum e_keystroke key, s
 // paints the line based on the previous keystroke
 static inline void paint_line(struct location_t* loc, enum e_keystroke prev, enum e_keystroke new) {
     paint_char(loc, prev & new & (ascii_up | arrow_up | ascii_down | arrow_down)
-            ? TRON_VERTICAL_CHAR : TRON_HORIZONTAL_CHAR);
+            ? tron.vertical_char : tron.horizontal_char);
 }
 
 
@@ -159,10 +161,14 @@ static int tron_over(void) {
 // ----- tron.h ----------------------------------------------------------------
 
 
-// prints the data specific to snake
+// prints the data specific to tron
 void print_tron_help(void) {
     printf(TRON_ARG "\n\t"
-            "additional arguments for" TRON_TITLE "\n\t");
+            "additional arguments for" TRON_TITLE "\n\t"
+            TRON_P1_ARG           "\tchar - the player1 bike style\n\t"
+            TRON_P2_ARG           "\tchar - the player2 bike style\n\t"
+            TRON_VERTICAL_ARG   "\t\tchar - the bike trail style moving vertically\n\t"
+            TRON_HORIZONTAL_ARG "\t\tchar - the bike trail style moving horizontally\n\n");
 
 }
 
@@ -171,6 +177,29 @@ int new_tron(struct carcade_t* data, int argc, char** argv) {
     Data = data;
     tron.player1_char = TRON_DEFAULT_P1_CHAR;
     tron.player2_char = TRON_DEFAULT_P2_CHAR;
+    tron.vertical_char = TRON_DEFAULT_VERTICAL_CHAR;
+    tron.horizontal_char = TRON_DEFAULT_HORIZONTAL_CHAR;
+    // parse out custom arguments
+    for (int i = 0; i < argc - 1; i++) {
+        if (!strcmp(TRON_P1_ARG, argv[i])) {
+            tron.player1_char = *argv[++i];
+        }
+        else if (!strcmp(TRON_P2_ARG, argv[i])) {
+            tron.player2_char = *argv[++i];
+        }
+        else if (!strcmp(TRON_VERTICAL_ARG, argv[i])) {
+            tron.vertical_char = *argv[++i];
+        }
+        else if (!strcmp(TRON_HORIZONTAL_ARG, argv[i])) {
+            tron.horizontal_char = *argv[++i];
+        }
+    }
+    if (!tron.player1_char || !tron.player2_char || !tron.vertical_char || !tron.horizontal_char ||
+            tron.player1_char == tron.player2_char ||
+            tron.vertical_char == Data->clear_char || tron.horizontal_char == Data->clear_char) {
+        printf("error: something went wrong with the tron arguments\n");
+        return CARCADE_GAME_QUIT;
+    }
     // set the title and function pointer data
     int len = strlen(TRON_TITLE);
     memcpy(Data->title, TRON_TITLE, len);

@@ -12,10 +12,14 @@
 #define TRON_ARG "tron"
 
 // the player representation
+#define TRON_P1_ARG "-tron-p1"
 #define TRON_DEFAULT_P1_CHAR '1'
+#define TRON_P2_ARG "-tron-p2"
 #define TRON_DEFAULT_P2_CHAR '2'
-#define TRON_VERTICAL_CHAR '|'
-#define TRON_HORIZONTAL_CHAR '-'
+#define TRON_VERTICAL_ARG "-vtrail"
+#define TRON_DEFAULT_VERTICAL_CHAR '|'
+#define TRON_HORIZONTAL_ARG "-htrail"
+#define TRON_DEFAULT_HORIZONTAL_CHAR '-'
 
 #define TRON_P1_WIN_MESSAGE " P1 WINS! "
 #define TRON_P2_WIN_MESSAGE " P2 WINS! "
