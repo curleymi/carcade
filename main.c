@@ -4,32 +4,39 @@
  */
 
 
+#include "carcade.h"
 #include "snake.h"
-#include <unistd.h>
+#include <ncurses.h>
+#include <signal.h>
+#include <stdlib.h>
 
+static int sigcaught = 0;
 
+static void sighand(int sig) {
+    sigcaught = 1;
+    stop_carcade();
+}
 
-// ----- preprocessor definitions ----------------------------------------------
-
-
-// the frequency at which to drive the game/move the snake in microseconds
-#define PRINT_FREQUENCY_US 85000
-
-
-
-// ----- main ------------------------------------------------------------------
-
-
-// main entry - expects no arguments for the time
+// main entry
 int main(int argc, char** argv) {
-    // init the game, on fail do nothing
-    if (make_snake() != SNAKE_GAME_OVER) {
-        // continue printing to drive the game until the game is over
-        while (print_snake() != SNAKE_GAME_OVER) {
-            usleep(PRINT_FREQUENCY_US);
+    int ret;
+    struct carcade_t data;
+    default_data(&data);
+    if (signal(SIGINT, sighand) == SIG_ERR) {
+        return -1;
+    }
+    // determine game type here
+    new_snake(&data, argc, argv);
+    ret = start_carcade(&data);
+    while (!sigcaught && ret != CARCADE_GAME_QUIT &&
+            (ret = game_over()) != CARCADE_GAME_QUIT) {
+        ret = new_game();
+        while (!sigcaught && ret != CARCADE_GAME_OVER && ret != CARCADE_GAME_QUIT) {
+            ret = paint();
         }
-        // print message and clean up
-        snake_over();
+    }
+    if (!sigcaught) {
+        stop_carcade();
     }
     return 0;
 }

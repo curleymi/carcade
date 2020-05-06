@@ -4,12 +4,13 @@
 #
 
 all:
-	gcc -o csnake \
+	gcc -o carcade \
 		-lpthread \
 		-lncurses \
+		carcade.h carcade.c \
 		snake.h snake.c \
 		main.c
 
 clean:
-	rm -rf csnake
+	rm -rf carcade
 
