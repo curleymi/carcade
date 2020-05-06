@@ -18,6 +18,8 @@
 // flag indicates if the game is running and if game has been quit
 static int Flag_Running;
 static int Flag_Quit;
+static int Flag_Refresh;
+static int Flag_Kill_Thread;
 
 // the ticks since the last refresh
 static unsigned int Count_Since_Refresh;
@@ -99,9 +101,9 @@ static void initialize_board(void) {
 }
 
 // updates Next for the given key
-static inline void key_pressed(enum e_keystroke key) {
+static inline void key_pressed(enum e_keystroke key, enum e_keystroke clear) {
     if (Data->ORkeys) {
-        Next |= key;
+        Next = (Next & clear) | key;
     }
     else {
         Next = key;
@@ -114,16 +116,16 @@ static inline int handle_arrow(char* ch) {
         if ((*ch = getch()) == ARROW_IGNORE_CHAR) {
             switch ((*ch = getch())) {
                 case ARROW_UP_CHAR:
-                    key_pressed(arrow_up);
+                    key_pressed(arrow_up, arrow_clear);
                     return 1;
                 case ARROW_DOWN_CHAR:
-                    key_pressed(arrow_down);
+                    key_pressed(arrow_down, arrow_clear);
                     return 1;
                 case ARROW_RIGHT_CHAR:
-                    key_pressed(arrow_right);
+                    key_pressed(arrow_right, arrow_clear);
                     return 1;
                 case ARROW_LEFT_CHAR:
-                    key_pressed(arrow_left);
+                    key_pressed(arrow_left, arrow_clear);
                     return 1;
             }
         }
@@ -135,19 +137,19 @@ static inline int handle_arrow(char* ch) {
 static inline void handle_ascii(char ch) {
     switch (ch) {
         case ASCII_UP_CHAR:
-            key_pressed(ascii_up);
+            key_pressed(ascii_up, ascii_clear);
             break;
         case ASCII_DOWN_CHAR:
-            key_pressed(ascii_down);
+            key_pressed(ascii_down, ascii_clear);
             break;
         case ASCII_RIGHT_CHAR:
-            key_pressed(ascii_right);
+            key_pressed(ascii_right, ascii_clear);
             break;
         case ASCII_LEFT_CHAR:
-            key_pressed(ascii_left);
+            key_pressed(ascii_left, ascii_clear);
             break;
         case CARCADE_REFRESH_CHAR:
-            Count_Since_Refresh = Data->refresh_threshold;
+            Flag_Refresh = 1;
             break;
         case CARCADE_QUIT_CHAR:
             Flag_Quit = 1;
@@ -167,7 +169,7 @@ static void* get_keys(void* arg) {
                 handle_ascii(ch);
             }
         }
-    } while (!Flag_Quit);
+    } while (!Flag_Kill_Thread);
     // set the quit, bypass OR logic
     Next = carcade_quit;
     return NULL;
@@ -175,7 +177,7 @@ static void* get_keys(void* arg) {
 
 // returns the next keystroke(s)
 static inline enum e_keystroke next_key(void) {
-    return Flag_Quit ? carcade_quit : Next;
+    return Flag_Quit || Flag_Kill_Thread ? carcade_quit : Next;
 }
 
 // clears the active gameboard
@@ -190,6 +192,25 @@ static inline void clear_board_contents(void) {
         // skip over the edges and newline
         brd += (CHAR_BORDER_WIDTH * 2) + 1;
     }
+}
+
+// returns the pointer to the character at the location
+static inline char* board_char(struct location_t* loc) {
+    return Data->board + Data->skip_board_chars +
+        (Data->line_width * loc->row) +
+        loc->col + CHAR_BORDER_WIDTH;
+
+}
+
+// refreshes the entire curses window
+static inline void force_refresh_curses(void) {
+    clear();
+    endwin();
+    initscr();
+    noecho();
+    clear();
+    Count_Since_Refresh = 0;
+    Flag_Refresh = 0;
 }
 
 // paints the current contents of the board to the console
@@ -217,14 +238,9 @@ static inline void paint_current_board(void) {
     *(buf++) = '\n';
     *buf = '\0';
     // refresh if needed
-    Count_Since_Refresh += Data->force_refresh ? 1 : 0;
-    if (Count_Since_Refresh >= Data->refresh_threshold) {
-        clear();
-        endwin();
-        initscr();
-        noecho();
-        clear();
-        Count_Since_Refresh = 0;
+    if (Flag_Refresh ||
+            (Data->force_refresh && Count_Since_Refresh++ > FORCE_REFRESH_COUNT(Data->force_refresh, Data->speed))) {
+        force_refresh_curses();
     }
     // add the board and the scoreboard
     mvaddnstr(0, 0, Data->board, Data->board_size);
@@ -234,6 +250,18 @@ static inline void paint_current_board(void) {
     if (Data->clear_board_buffer) {
         clear_board_contents();
     }
+}
+
+// gets the first character and clears the input buffer if many keys are clicked
+static inline char user_input(void) {
+    // wait for any user input
+    cbreak();
+    char ch = getch();
+    // clear the buffer
+    do {
+        halfdelay(GETCH_TIMEOUT);
+    } while (getch() != ERR);
+    return ch;
 }
 
 
@@ -272,6 +300,7 @@ int start_carcade(struct carcade_t* data) {
     // indicate not running
     Flag_Running = 0;
     Flag_Quit = 0;
+    Flag_Kill_Thread = 0;
 
     // set and verify data
     Data = data;
@@ -292,7 +321,6 @@ int start_carcade(struct carcade_t* data) {
     Data->board_size = CHAR_BOARD_SIZE(Data->width, Data->height);
     Data->skip_board_chars = SKIP_BOARD_CHARS(Data->width);
     Data->delay = UDELAY(Data->speed);
-    Data->refresh_threshold = REFRESH_THRESHOLD(Data->speed);
     
     // setup curses screen
     initscr();
@@ -305,7 +333,7 @@ int start_carcade(struct carcade_t* data) {
 
 // initializes a new game
 int new_game(void) {
-    if (Flag_Quit) {
+    if (Flag_Kill_Thread) {
         return CARCADE_GAME_QUIT;
     }
     // reset score, can overwrite later if needed
@@ -319,8 +347,10 @@ int new_game(void) {
     paint_current_board();
     // set the local next key and indicate to thread the game is now running
     Next = Data->key;
+    Flag_Quit = 0;
     Flag_Running = 1;
-    Count_Since_Refresh = Data->refresh_threshold * 9 / 10;
+    Flag_Refresh = 0;
+    Count_Since_Refresh = 0;
     return 0;
 }
 
@@ -342,7 +372,12 @@ void clear_keystroke(void) {
 
 // paints a single character on the board
 void paint_char(struct location_t* loc, char c) {
-    Data->board[Data->skip_board_chars + (Data->line_width * loc->row) + loc->col + CHAR_BORDER_WIDTH] = c;
+    *board_char(loc) = c;
+}
+
+// returns the painted character at the location
+char painted_char(struct location_t* loc) {
+    return *board_char(loc);
 }
 
 // adds the given text on the line in the center of the board
@@ -362,7 +397,7 @@ void paint_center_text(int line, const char* str) {
 
 // paints the current board
 int paint(void) {
-    if (Flag_Quit) {
+    if (Flag_Quit || Flag_Kill_Thread) {
         return CARCADE_GAME_QUIT;
     }
     // make the move, move can never be null
@@ -370,14 +405,18 @@ int paint(void) {
     // if the result s not a quit, print the board and wait the delay
     if (ret != CARCADE_GAME_QUIT) {
         paint_current_board();
+#ifdef SLOW_MODE
+        usleep(1000000 * SLOW_SLEEP_SEC);
+#else
         usleep(Data->delay);
+#endif
     }
     return ret;
 }
 
 // stops a running game
 int game_over(void) {
-    if (Flag_Quit) {
+    if (Flag_Kill_Thread) {
         return CARCADE_GAME_QUIT;
     }
     char quit_buf[MAX_STRLEN];
@@ -398,10 +437,12 @@ int game_over(void) {
     paint_center_text(line + 2, PLAY_MESSAGE);
     paint_current_board();
     // wait for the user input, if quit then stop and return quit
-    cbreak();
-    if (getch() == CARCADE_QUIT_CHAR) {
+    if (user_input() == CARCADE_QUIT_CHAR) {
         Flag_Quit = 1;
         return CARCADE_GAME_QUIT;
+    }
+    else {
+        Flag_Quit = 0;
     }
     return 0;
 }
@@ -411,6 +452,7 @@ void stop_carcade(void) {
     // indicate no longer running and also stopped
     Flag_Running = 0;
     Flag_Quit = 1;
+    Flag_Kill_Thread = 1;
     // wait for thread to join up
     pthread_join(Key_Thread, 0);
     // clear the board before adding to it
@@ -422,13 +464,7 @@ void stop_carcade(void) {
     // paint the exit message
     paint_center_text((Data->height / 2) - 1, EXIT_MESSAGE);
     paint_current_board();
-    // wait for any user input
-    cbreak();
-    getch();
-    // clear the buffer
-    do {
-        halfdelay(GETCH_TIMEOUT);
-    } while (getch() != ERR);
+    user_input();
     // clear the screen and end the curses window
     clear();
     refresh();

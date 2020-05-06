@@ -8,6 +8,13 @@
 
 #include <unistd.h>
 
+// define this to override any speed to enable extra slow mode
+//#define SLOW_MODE
+#ifdef SLOW_MODE
+// the amount of time between paints in seconds
+#define SLOW_SLEEP_SEC                            0.5
+#endif
+
 // metric bounds
 #define MIN_WIDTH                                 23
 #define MAX_WIDTH                                 128
@@ -29,8 +36,8 @@
 #define DEFAULT_CLEAR_CHAR                       ' '
 
 // logic defaults
-#define DEFAULT_FORCE_REFRESH                     1 // true
-#define DEFAULT_ORKEYS                            1 // true
+#define DEFAULT_FORCE_REFRESH                     0 // refresh/seconds
+#define DEFAULT_ORKEYS                            0 // false -> single player
 #define DEFAULT_CLEAR_BOARD_BUFFER                1 // true
 
 // the height of the title characters and horizontal border, width of vertical
@@ -60,7 +67,7 @@
 #define GETCH_TIMEOUT                             1
 
 // the amount of times the screen is updated before a refresh is forced
-#define REFRESH_THRESHOLD(SPEED) ((unsigned int)3000000 / (unsigned int)UDELAY(SPEED))
+#define FORCE_REFRESH_COUNT(TIME, SPEED) ((TIME * 1000000) / UDELAY(SPEED))
 
 
 // the quit and continue string
@@ -71,7 +78,11 @@
 
 // the scoreboard format string
 #define SCOREBOARD_SCORE                         " SCORE: %d "
+#ifdef SLOW_MODE
+#define SCOREBOARD_WIDTH_HEIGHT_SPEED            "SIZE: %dx%d  SPEED: SLOW "
+#else
 #define SCOREBOARD_WIDTH_HEIGHT_SPEED            "SIZE: %dx%d  SPEED: %d "
+#endif
 
 // max length of any predefined message
 #define MAX_STRLEN                                128
@@ -107,12 +118,14 @@ enum e_keystroke {
     arrow_down =             2,
     arrow_right =            4,
     arrow_left =             8,
+    arrow_clear =          ~(1 | 2 | 4 | 8),
 
     // second player arrow keys
     ascii_up =               16,
     ascii_down =             32,
     ascii_right =            64,
     ascii_left =             128,
+    ascii_clear =          ~(16 | 32 | 64 | 128),
 
     // the quit key
     carcade_quit =           256,
@@ -151,8 +164,6 @@ struct carcade_t {
 
     // bool to indicate if refreshes are forced
     int force_refresh;
-    // the threshold number of paints before a forced refresh
-    unsigned int refresh_threshold;
 
     // bool, indicates if the board is completely cleared after each paint
     int clear_board_buffer;
@@ -199,6 +210,9 @@ void clear_keystroke(void);
 
 // paints a single character on the board
 void paint_char(struct location_t* loc, char c);
+
+// returns the painted character at the location
+char painted_char(struct location_t* loc);
 
 // adds the given text on the line in the center of the board
 void paint_center_text(int line, const char* str);

@@ -14,6 +14,9 @@
 
 // the snake itself
 static struct snake_t {
+    char head_char;
+    char body_char;
+    char food_char;
     unsigned int length;
     unsigned int offset;
     unsigned int area;
@@ -76,11 +79,11 @@ static int snake_reset(void) {
         snake.locations[i].row = 0;
         snake.locations[i].col = i;
         paint_char(&snake.locations[i], i == snake.length - 1
-                ? SNAKE_HEAD_CHAR : SNAKE_BODY_CHAR);
+                ? snake.head_char : snake.body_char);
     }
     // assign a random food spot anywhere where the snake is not right now
     random_location_bound(&snake.food_loc, 1, snake.length);
-    paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
+    paint_char(&snake.food_loc, snake.food_char);
     // set the starting direction
     Data->key = arrow_right;
     return 0;
@@ -106,34 +109,37 @@ static int snake_move(enum e_keystroke next) {
     }
     // make sure the next move does not end the game before continuing
     if (next_location(snake_head(), next, &head) != CARCADE_GAME_OVER) {
-        for (int i = 1; i < snake.length; i++) {
-            // if the head hits the body the game is over
-            loc = &snake.locations[(i + snake.offset) % snake.area];
-            if (loc->row == head.row && loc->col == head.col) {
-                return CARCADE_GAME_OVER;
-            }
+        // if the head hits the body the game is over
+        if (painted_char(&head) == snake.body_char) {
+            return CARCADE_GAME_OVER;
         }
         // overwrite the current head
-        paint_char(snake_head(), SNAKE_BODY_CHAR);
+        paint_char(snake_head(), snake.body_char);
         // if head eats food, increase the length/score and put down new food
         if (head.row == snake.food_loc.row && head.col == snake.food_loc.col) {
             snake.length++;
             Data->score++;
             random_location(&snake.food_loc);
             // paint the new food, old was overwritten
-            paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
+            paint_char(&snake.food_loc, snake.food_char);
         }
         else {
-            // increase offset and erease the tail
-            paint_char(&snake.locations[snake.offset], Data->clear_char);
+            // increase offset and erase the tail if it is not the food
+            // random food locations means the food can overlap the body
+            loc = &snake.locations[snake.offset];
+            if (loc->row != snake.food_loc.row || loc->col != snake.food_loc.col) {
+                paint_char(&snake.locations[snake.offset], Data->clear_char);
+            }
             snake.offset = (snake.offset + 1) % snake.area;
         }
         // move the head
         loc = snake_head();
         loc->row = head.row;
         loc->col = head.col;
-        // paint the head
-        paint_char(&head, SNAKE_HEAD_CHAR);
+        // paint the head if it is not overlapped by the food
+        if (head.row != snake.food_loc.row || head.col != snake.food_loc.col) {
+            paint_char(&head, snake.head_char);
+        }
         Data->key = next;
     }
     return 0;
@@ -145,17 +151,25 @@ static int snake_move(enum e_keystroke next) {
 
 
 // sets up the data for a new snake game
-void new_snake(struct carcade_t* data, int argc, char** argv) {
+int new_snake(struct carcade_t* data, int argc, char** argv) {
     Data = data;
-    int len = strlen(SNAKE_TITLE);
+    snake.head_char = SNAKE_DEFAULT_HEAD_CHAR;
+    snake.body_char = SNAKE_DEFAULT_BODY_CHAR;
+    snake.food_char = SNAKE_DEFAULT_FOOD_CHAR;
     // TODO parse out custom arguments
+    if (snake.head_char == snake.body_char ||
+            snake.body_char == snake.food_char ||
+            snake.food_char == snake.head_char) {
+        return CARCADE_GAME_QUIT;
+    }
     // set the title and function pointer data
+    int len = strlen(SNAKE_TITLE);
     memcpy(Data->title, SNAKE_TITLE, len);
     Data->clear_board_buffer = 0; // snake remains mostly similar between paints
-    Data->ORkeys = 0; // single player
     Data->title[len] = '\0';
     Data->reset = snake_reset;
     Data->move = snake_move;
+    return 0;
 }
 
 
