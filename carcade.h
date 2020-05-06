@@ -22,21 +22,34 @@
 #define MAX_HEIGHT                                48
 #define MIN_SPEED                                 1
 #define MAX_SPEED                                 10
+#define MIN_FORCE_REFRESH                         0
+#define MAX_FORCE_REFRESH                         30
 
 // default metrics
+#define WIDTH_ARG                                 "-w"
 #define DEFAULT_WIDTH                             40
+#define HEIGHT_ARG                                "-h"
 #define DEFAULT_HEIGHT                            15
+#define SPEED_ARG                                 "-s"
 #define DEFAULT_SPEED                             1
+#define FORCE_REFRESH_ARG                        "-force"
+#define DEFAULT_FORCE_REFRESH                     0
 
 // paint defaults
+#define TITLE_CHAR_ARG                           "-title"
 #define DEFAULT_TITLE_CHAR                       ' '
+#define CORNER_CHAR_ARG                          "-corner"
 #define DEFAULT_CORNER_CHAR                      '+'
+#define HORIZONTAL_CHAR_ARG                       "-hborder"
 #define DEFAULT_HORIZONTAL_CHAR                  '-'
+#define VERTICAL_CHAR_ARG                        "-vborder"
 #define DEFAULT_VERTICAL_CHAR                    '|'
+#define CLEAR_CHAR_ARG                           "-board"
 #define DEFAULT_CLEAR_CHAR                       ' '
 
 // logic defaults
-#define DEFAULT_FORCE_REFRESH                     0 // refresh/seconds
+#define KEEP_SCORE_ARG                           "-freeplay"
+#define DEFAULT_KEEP_SCORE                        1 // true
 #define DEFAULT_ORKEYS                            0 // false -> single player
 #define DEFAULT_CLEAR_BOARD_BUFFER                1 // true
 
@@ -72,7 +85,7 @@
 
 // the quit and continue string
 #define GAME_OVER_MESSAGE                        " GAME OVER "
-#define QUIT_MESSAGE_FORMAT                      " PRESS %c TO QUIT "
+#define QUIT_MESSAGE_FORMAT                      " PRESS \'%c\' TO QUIT "
 #define PLAY_MESSAGE                             " PRESS ANY KEY TO PLAY "
 #define EXIT_MESSAGE                             " PRESS ANY KEY TO EXIT "
 
@@ -138,7 +151,6 @@ struct carcade_t {
     int width;  // chars wide
     int height; // chars high
     int speed;  // paint ticks/second
-    int score;  // current score
 
     // board paint info
     char title_char;      // chars next to title
@@ -149,6 +161,10 @@ struct carcade_t {
     char board[CHAR_BOARD_SIZE(MAX_WIDTH, MAX_HEIGHT) + CHAR_BOARD_WIDTH(MAX_WIDTH)];
 
     // ----- game specific data, no defualts must be set on initialize -----
+    // bool to keep score and if so the current score
+    int keep_score;
+    int score;
+
     // the height and width of the board in lines
     int board_lines;
     int line_width;
@@ -190,8 +206,11 @@ struct carcade_t {
     void (*stop)(void);
 };
 
-// sets the default data
-void default_data(struct carcade_t* data);
+// prints data about the c arcade
+void print_carcade_help(void);
+
+// sets the default or overwritten data
+void set_data(struct carcade_t* data, int argc, char** argv);
 
 // starts the arcade, allocates resources
 int start_carcade(struct carcade_t* data);

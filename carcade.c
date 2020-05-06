@@ -222,7 +222,12 @@ static inline void paint_current_board(void) {
     int right_len;
     int filler;
     // fill in the scoreboard labels
-    sprintf(left, SCOREBOARD_SCORE, Data->score);
+    if (Data->keep_score) {
+        sprintf(left, SCOREBOARD_SCORE, Data->score);
+    }
+    else {
+        *left = '\0';
+    }
     sprintf(right, SCOREBOARD_WIDTH_HEIGHT_SPEED, Data->width, Data->height, Data->speed);
     left_len = strlen(left);
     right_len = strlen(right);
@@ -269,12 +274,35 @@ static inline char user_input(void) {
 // ----- carcade.h -------------------------------------------------------------
 
 
+// prints data about the c arcade
+void print_carcade_help(void) {
+    printf("\t"
+            WIDTH_ARG         "\t\tint  - the game width between %d and %d\n\t"
+            HEIGHT_ARG        "\t\tint  - the game height between %d and %d\n\t"
+            SPEED_ARG         "\t\tint  - the game speed between %d and %d\n\t"
+            KEEP_SCORE_ARG      "\t     - disable score keeping\n\t"
+            FORCE_REFRESH_ARG "\t\tint  - force a new render of the game every %d-%d seconds\n\t"
+                              "\t\t       higher values may result in choppy/degraded performance\n\t"
+                              "\t\t         NOTE: if omitted the game may have stray characters\n\t"
+                              "\t\t           (especially at higher speeds) to force a manual\n\t"
+                              "\t\t           refresh render press \'%c\' during gameplay\n\t"
+            TITLE_CHAR_ARG    "\t\tchar - the title style\n\t"
+            CORNER_CHAR_ARG     "\tchar - the corner style\n\t"
+            HORIZONTAL_CHAR_ARG "\tchar - the horizontal border style\n\t"
+            VERTICAL_CHAR_ARG   "\tchar - the vertical border style\n\t"
+            CLEAR_CHAR_ARG    "\t\tchar - the board fill style\n\n",
+            MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT,
+            MIN_SPEED, MAX_SPEED, MIN_FORCE_REFRESH, MAX_FORCE_REFRESH,
+            CARCADE_REFRESH_CHAR);
+}
+
 // sets the default data
-void default_data(struct carcade_t* data) {
+void set_data(struct carcade_t* data, int argc, char** argv) {
     // set all default values
     data->width = DEFAULT_WIDTH;
     data->height = DEFAULT_HEIGHT;
     data->speed = DEFAULT_SPEED;
+    data->keep_score = DEFAULT_KEEP_SCORE;
     data->score = 0;
     data->title_char = DEFAULT_TITLE_CHAR;
     data->corner_char = DEFAULT_CORNER_CHAR;
@@ -289,7 +317,43 @@ void default_data(struct carcade_t* data) {
     data->move = NULL;
     data->over = NULL;
     data->stop = NULL;
-
+    // parse out specials
+    for (int i = 0; i < argc; i++) {
+        // argument pairs
+        if (i < argc - 1) {
+            if (!strcmp(argv[i], WIDTH_ARG)) {
+                data->width = atoi(argv[++i]);
+            }
+            else if (!strcmp(argv[i], HEIGHT_ARG)) {
+                data->height = atoi(argv[++i]);
+            }
+            else if (!strcmp(argv[i], SPEED_ARG)) {
+                data->speed = atoi(argv[++i]);
+            }
+            else if (!strcmp(argv[i], FORCE_REFRESH_ARG)) {
+                data->force_refresh = atoi(argv[++i]);
+            }
+            else if (!strcmp(argv[i], TITLE_CHAR_ARG)) {
+                data->title_char = *argv[++i];
+            }
+            else if (!strcmp(argv[i], CORNER_CHAR_ARG)) {
+                data->corner_char = *argv[++i];
+            }
+            else if (!strcmp(argv[i], HORIZONTAL_CHAR_ARG)) {
+                data->horizontal_char = *argv[++i];
+            }
+            else if (!strcmp(argv[i], VERTICAL_CHAR_ARG)) {
+                data->vertical_char = *argv[++i];
+            }
+            else if (!strcmp(argv[i], CLEAR_CHAR_ARG)) {
+                data->clear_char = *argv[++i];
+            }
+        }
+        // single arguments
+        if (!strcmp(argv[i], KEEP_SCORE_ARG)) {
+            data->keep_score = 0;
+        }
+    }
 }
 
 // starts the arcade. allocates resources
@@ -304,11 +368,22 @@ int start_carcade(struct carcade_t* data) {
 
     // set and verify data
     Data = data;
-    if (!Data->move ||
+    if (!Data->move) {
+        printf("error: no move function specified - report\n");
+        return CARCADE_GAME_QUIT;
+    }
+    if (!Data->title_char || !Data->corner_char ||
+            !Data->horizontal_char || !Data->vertical_char || !Data->clear_char ||
             Data->width < MIN_WIDTH || Data->width > MAX_WIDTH ||
             Data->height < MIN_HEIGHT || Data->height > MAX_HEIGHT ||
             Data->speed < MIN_SPEED || Data->speed > MAX_SPEED ||
-            pthread_create(&Key_Thread, 0, get_keys, 0)) {
+            Data->force_refresh < MIN_FORCE_REFRESH ||
+            Data->force_refresh > MAX_FORCE_REFRESH) {
+        printf("error: something went wrong with specified metrics\n");
+        return CARCADE_GAME_QUIT;
+    }
+    if (pthread_create(&Key_Thread, 0, get_keys, 0)) {
+        printf("error: could not monitor user input\n");
         return CARCADE_GAME_QUIT;
     }
     

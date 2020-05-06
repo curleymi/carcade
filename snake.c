@@ -6,6 +6,7 @@
 
 #include "carcade.h"
 #include "snake.h"
+#include <stdio.h>
 #include <string.h>
 
 
@@ -110,7 +111,7 @@ static int snake_move(enum e_keystroke next) {
     // make sure the next move does not end the game before continuing
     if (next_location(snake_head(), next, &head) != CARCADE_GAME_OVER) {
         // if the head hits the body the game is over
-        if (painted_char(&head) == snake.body_char) {
+        if (Data->keep_score && painted_char(&head) == snake.body_char) {
             return CARCADE_GAME_OVER;
         }
         // overwrite the current head
@@ -150,16 +151,40 @@ static int snake_move(enum e_keystroke next) {
 // ----- snake.h ---------------------------------------------------------------
 
 
+// prints the data specific to snake
+void print_snake_help(void) {
+    char body = SNAKE_DEFAULT_BODY_CHAR;
+    printf(SNAKE_ARG "\n\t"
+            "additional arguments for" SNAKE_TITLE "    %c%c%c%c%c%c%c%c %c\n\t"
+            SNAKE_HEAD_ARG "\tchar - the head style\n\t"
+            SNAKE_BODY_ARG "\tchar - the body style\n\t"
+            SNAKE_FOOD_ARG "\tchar - the food style\n\n",
+            body, body, body, body, body, body, body,
+            SNAKE_DEFAULT_HEAD_CHAR, SNAKE_DEFAULT_FOOD_CHAR);
+
+}
+
 // sets up the data for a new snake game
 int new_snake(struct carcade_t* data, int argc, char** argv) {
     Data = data;
     snake.head_char = SNAKE_DEFAULT_HEAD_CHAR;
     snake.body_char = SNAKE_DEFAULT_BODY_CHAR;
     snake.food_char = SNAKE_DEFAULT_FOOD_CHAR;
-    // TODO parse out custom arguments
-    if (snake.head_char == snake.body_char ||
-            snake.body_char == snake.food_char ||
-            snake.food_char == snake.head_char) {
+    // parse out custom arguments
+    for (int i = 0; i < argc - 1; i++) {
+        if (!strcmp(SNAKE_HEAD_ARG, argv[i])) {
+            snake.head_char = *argv[++i];
+        }
+        else if (!strcmp(SNAKE_BODY_ARG, argv[i])) {
+            snake.body_char = *argv[++i];
+        }
+        else if (!strcmp(SNAKE_FOOD_ARG, argv[i])) {
+            snake.food_char = *argv[++i];
+        }
+    }
+    if (snake.head_char == snake.body_char || snake.head_char == Data->clear_char ||
+            snake.body_char == snake.food_char || snake.body_char == Data->clear_char ||
+            snake.food_char == snake.head_char || snake.food_char == Data->clear_char) {
         return CARCADE_GAME_QUIT;
     }
     // set the title and function pointer data

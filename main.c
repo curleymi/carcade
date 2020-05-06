@@ -19,12 +19,15 @@ static void sighand(int sig) {
 }
 
 static void print_help(void) {
-   printf("No game type specified\n");
+   printf("help \n");
+   print_carcade_help();
+   printf("\nto play any of the following games specify its name as the first argument\n\n");
+   print_snake_help();
 }
 
 static int initialize_game(struct carcade_t* data, int argc, char** argv) {
    if (argc > 1) {
-       if (!strcmp(argv[1], SNAKE_COMMAND)) {
+       if (!strcmp(argv[1], SNAKE_ARG)) {
            return new_snake(data, argc, argv);
        }
    }
@@ -36,19 +39,17 @@ static int initialize_game(struct carcade_t* data, int argc, char** argv) {
 int main(int argc, char** argv) {
     int ret;
     struct carcade_t data;
-    default_data(&data);
+    set_data(&data, argc, argv);
     // handle signal interrupt
     if (signal(SIGINT, sighand) == SIG_ERR) {
         // print error
         return -1;
     }
     // if init failed do nothing
-    if (initialize_game(&data, argc, argv) != CARCADE_GAME_QUIT) {
-        // start the c arcade
-        ret = start_carcade(&data);
+    if (initialize_game(&data, argc, argv) != CARCADE_GAME_QUIT &&
+            start_carcade(&data) != CARCADE_GAME_QUIT) {
         // play new games until it is quit or a signal interrupt
-        while (!sigcaught && ret != CARCADE_GAME_QUIT &&
-                (ret = game_over()) != CARCADE_GAME_QUIT) {
+        while (!sigcaught && (ret = game_over()) != CARCADE_GAME_QUIT) {
             // create new game
             ret = new_game();
             // continue to play until game over or signal interrupt
