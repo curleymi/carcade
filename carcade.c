@@ -495,21 +495,21 @@ int game_over(void) {
         return CARCADE_GAME_QUIT;
     }
     char quit_buf[MAX_STRLEN];
-    int line = (Data->height / 2) - 2;
+    int line = (Data->height / 2) - 1;
     // indicate the game is no longer running
     Flag_Running = 0;
     // fill in the quit buffer with the special character
     sprintf(quit_buf, QUIT_MESSAGE_FORMAT, CARCADE_QUIT_CHAR);
-    // clear the board before adding to it
-    clear_board_contents();
     // invoke the optional game over function
-    if (Data->over) {
-        (*Data->over)();
+    if (Data->over && !(*Data->over)()) {
+        line++;
     }
-    // paint the three messages on three separate lines
-    paint_center_text(line, GAME_OVER_MESSAGE);
-    paint_center_text(line + 1, quit_buf);
-    paint_center_text(line + 2, PLAY_MESSAGE);
+    else {
+        paint_center_text(line++, GAME_OVER_MESSAGE);
+    }
+    // paint the messages on three separate lines
+    paint_center_text(line++, quit_buf);
+    paint_center_text(line, PLAY_MESSAGE);
     paint_current_board();
     // wait for the user input, if quit then stop and return quit
     if (user_input() == CARCADE_QUIT_CHAR) {

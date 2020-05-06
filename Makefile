@@ -9,6 +9,7 @@ all:
 		-lncurses \
 		carcade.h carcade.c \
 		snake.h snake.c \
+		tron.h tron.c \
 		main.c
 
 clean:

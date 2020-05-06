@@ -201,7 +201,7 @@ struct carcade_t {
     // NON-NULLABLE
     int (*move)(enum e_keystroke next);
     // end the current game (but don't quit) - nullable
-    void (*over)(void);
+    int (*over)(void);
     // stop/quit the game - nullable
     void (*stop)(void);
 };

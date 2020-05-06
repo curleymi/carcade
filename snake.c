@@ -142,8 +142,9 @@ static int snake_move(enum e_keystroke next) {
             paint_char(&head, snake.head_char);
         }
         Data->key = next;
+        return 0;
     }
-    return 0;
+    return CARCADE_GAME_OVER;
 }
 
 
