@@ -14,7 +14,7 @@
 #define SNAKE_FOOD_CHAR '@'
 
 // title and game over strings
-#define SNAKE_TITLE " CSNAKE "
+#define SNAKE_TITLE " SNAKE "
 
 // initializes the snake game
 void new_snake(struct carcade_t* data, int argc, char** argv);

@@ -18,6 +18,7 @@
 // flag indicates if the game is running and if game has been quit
 static int Flag_Running;
 static int Flag_Quit;
+static int Flag_Refresh;
 
 // the thread-shared next keystroke to process
 // note:
@@ -144,6 +145,9 @@ static void* get_keys(void* arg) {
                     case ASCII_LEFT_CHAR:
                         Next = ascii_left;
                         break;
+                    case CARCADE_REFRESH_CHAR:
+                        Flag_Refresh = 1;
+                        break;
                     case CARCADE_QUIT_CHAR:
                         Flag_Quit = 1;
                         break;
@@ -198,6 +202,15 @@ static inline void paint_current_board(void) {
     buf += right_len;
     *(buf++) = '\n';
     *buf = '\0';
+    // refresh if needed
+    if (Flag_Refresh) {
+        clear();
+        endwin();
+        initscr();
+        noecho();
+        clear();
+        Flag_Refresh = 0;
+    }
     // add the board and the scoreboard
     mvaddnstr(0, 0, Data->board, Data->board_size);
     mvaddstr(Data->board_lines, 0, left);
@@ -240,6 +253,7 @@ int start_carcade(struct carcade_t* data) {
     // indicate not running
     Flag_Running = 0;
     Flag_Quit = 0;
+    Flag_Refresh = 0;
 
     // set and verify data
     Data = data;

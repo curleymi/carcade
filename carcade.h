@@ -78,6 +78,7 @@
 #define ASCII_DOWN_CHAR                          's'
 #define ASCII_RIGHT_CHAR                         'd'
 #define ASCII_LEFT_CHAR                          'a'
+#define CARCADE_REFRESH_CHAR                     'r'
 #define CARCADE_QUIT_CHAR                        'q'
 
 // return codes

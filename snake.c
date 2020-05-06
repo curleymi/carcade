@@ -70,14 +70,15 @@ static inline void move_head(struct location_t* new_head) {
     struct location_t* cur_head = snake_head();
     cur_head->row = new_head->row;
     cur_head->col = new_head->col;
-    // paint the food on the board
-    paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
     // paint the whole snake, the tail is at the offset and the head is at the
     // end of the length location
     for (int i = 0; i < snake.length; i++) {
         paint_char(&snake.locations[(i + snake.offset) % snake.area],
                 i == snake.length - 1 ? SNAKE_HEAD_CHAR : SNAKE_BODY_CHAR);
     }
+    // paint the food on the board AFTER the snake has been draw so it
+    // overwrites and will always be visible if there is an overlap
+    paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
 }
 
 
