@@ -65,23 +65,6 @@ static inline int next_location(struct location_t* head,
 }
 
 
-// moves the head of the snake from its current position to the new one
-static inline void move_head(struct location_t* new_head) {
-    struct location_t* cur_head = snake_head();
-    cur_head->row = new_head->row;
-    cur_head->col = new_head->col;
-    // paint the whole snake, the tail is at the offset and the head is at the
-    // end of the length location
-    for (int i = 0; i < snake.length; i++) {
-        paint_char(&snake.locations[(i + snake.offset) % snake.area],
-                i == snake.length - 1 ? SNAKE_HEAD_CHAR : SNAKE_BODY_CHAR);
-    }
-    // paint the food on the board AFTER the snake has been draw so it
-    // overwrites and will always be visible if there is an overlap
-    paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
-}
-
-
 // resets the snake game
 static int snake_reset(void) {
     // reset the snake data
@@ -92,9 +75,12 @@ static int snake_reset(void) {
     for (int i = 0; i < snake.length; i++) {
         snake.locations[i].row = 0;
         snake.locations[i].col = i;
+        paint_char(&snake.locations[i], i == snake.length - 1
+                ? SNAKE_HEAD_CHAR : SNAKE_BODY_CHAR);
     }
     // assign a random food spot anywhere where the snake is not right now
     random_location_bound(&snake.food_loc, 1, snake.length);
+    paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
     // set the starting direction
     Data->key = arrow_right;
     return 0;
@@ -111,7 +97,8 @@ static int snake_move(enum e_keystroke next) {
     }
     // can't double back, keep going the same direction if the next is
     // immediately backwards
-    if ((Data->key & (arrow_up | ascii_up)) && (next & (arrow_down | ascii_down)) ||
+    if (!next ||
+            (Data->key & (arrow_up | ascii_up)) && (next & (arrow_down | ascii_down)) ||
             (Data->key & (arrow_down | ascii_down)) && (next & (arrow_up | ascii_up)) ||
             (Data->key & (arrow_right | ascii_right)) && (next & (arrow_left | ascii_left)) ||
             (Data->key & (arrow_left | ascii_left)) && (next & (arrow_right | ascii_right))) {
@@ -126,19 +113,27 @@ static int snake_move(enum e_keystroke next) {
                 return CARCADE_GAME_OVER;
             }
         }
+        // overwrite the current head
+        paint_char(snake_head(), SNAKE_BODY_CHAR);
         // if head eats food, increase the length/score and put down new food
         if (head.row == snake.food_loc.row && head.col == snake.food_loc.col) {
             snake.length++;
             Data->score++;
             random_location(&snake.food_loc);
+            // paint the new food, old was overwritten
+            paint_char(&snake.food_loc, SNAKE_FOOD_CHAR);
         }
-        // on no eat just increase the offset (effect is snake is same length)
         else {
+            // increase offset and erease the tail
+            paint_char(&snake.locations[snake.offset], Data->clear_char);
             snake.offset = (snake.offset + 1) % snake.area;
         }
-        // actually move the head to the new position and indicate the key that
-        // was processed
-        move_head(&head);
+        // move the head
+        loc = snake_head();
+        loc->row = head.row;
+        loc->col = head.col;
+        // paint the head
+        paint_char(&head, SNAKE_HEAD_CHAR);
         Data->key = next;
     }
     return 0;
@@ -156,6 +151,8 @@ void new_snake(struct carcade_t* data, int argc, char** argv) {
     // TODO parse out custom arguments
     // set the title and function pointer data
     memcpy(Data->title, SNAKE_TITLE, len);
+    Data->clear_board_buffer = 0; // snake remains mostly similar between paints
+    Data->ORkeys = 0; // single player
     Data->title[len] = '\0';
     Data->reset = snake_reset;
     Data->move = snake_move;

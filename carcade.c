@@ -18,7 +18,9 @@
 // flag indicates if the game is running and if game has been quit
 static int Flag_Running;
 static int Flag_Quit;
-static int Flag_Refresh;
+
+// the ticks since the last refresh
+static unsigned int Count_Since_Refresh;
 
 // the thread-shared next keystroke to process
 // note:
@@ -96,65 +98,77 @@ static void initialize_board(void) {
     append_horizontal_border(brd);
 }
 
+// updates Next for the given key
+static inline void key_pressed(enum e_keystroke key) {
+    if (Data->ORkeys) {
+        Next |= key;
+    }
+    else {
+        Next = key;
+    }
+}
+
+// returns if an arrow key was processed
+static inline int handle_arrow(char* ch) {
+    if ((*ch = getch()) == ARROW_ESCAPE_CHAR) {
+        if ((*ch = getch()) == ARROW_IGNORE_CHAR) {
+            switch ((*ch = getch())) {
+                case ARROW_UP_CHAR:
+                    key_pressed(arrow_up);
+                    return 1;
+                case ARROW_DOWN_CHAR:
+                    key_pressed(arrow_down);
+                    return 1;
+                case ARROW_RIGHT_CHAR:
+                    key_pressed(arrow_right);
+                    return 1;
+                case ARROW_LEFT_CHAR:
+                    key_pressed(arrow_left);
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+// handles an ascii keystroke
+static inline void handle_ascii(char ch) {
+    switch (ch) {
+        case ASCII_UP_CHAR:
+            key_pressed(ascii_up);
+            break;
+        case ASCII_DOWN_CHAR:
+            key_pressed(ascii_down);
+            break;
+        case ASCII_RIGHT_CHAR:
+            key_pressed(ascii_right);
+            break;
+        case ASCII_LEFT_CHAR:
+            key_pressed(ascii_left);
+            break;
+        case CARCADE_REFRESH_CHAR:
+            Count_Since_Refresh = Data->refresh_threshold;
+            break;
+        case CARCADE_QUIT_CHAR:
+            Flag_Quit = 1;
+            break;
+    }
+}
+
 // user input thread handler
 static void* get_keys(void* arg) {
-    int set;
     char ch;
     do {
         // only try to read characters if running
         if (Flag_Running) {
-            set = 0;
             // timeout in case Flag_Quit is set externally
             halfdelay(GETCH_TIMEOUT);
-            // if the sequence of chars leads to an arrow, indicate Next has
-            // been set
-            if ((ch = getch()) == ARROW_ESCAPE_CHAR) {
-                if ((ch = getch()) == ARROW_IGNORE_CHAR) {
-                    switch ((ch = getch())) {
-                        case ARROW_UP_CHAR:
-                            Next = arrow_up;
-                            set = 1;
-                            break;
-                        case ARROW_DOWN_CHAR:
-                            Next = arrow_down;
-                            set = 1;
-                            break;
-                        case ARROW_RIGHT_CHAR:
-                            Next = arrow_right;
-                            set = 1;
-                            break;
-                        case ARROW_LEFT_CHAR:
-                            Next = arrow_left;
-                            set = 1;
-                            break;
-                    }
-                }
-            }
-            // if not an arrow char, process a regular character
-            if (!set) {
-                switch (ch) {
-                    case ASCII_UP_CHAR:
-                        Next = ascii_up;
-                        break;
-                    case ASCII_DOWN_CHAR:
-                        Next = ascii_down;
-                        break;
-                    case ASCII_RIGHT_CHAR:
-                        Next = ascii_right;
-                        break;
-                    case ASCII_LEFT_CHAR:
-                        Next = ascii_left;
-                        break;
-                    case CARCADE_REFRESH_CHAR:
-                        Flag_Refresh = 1;
-                        break;
-                    case CARCADE_QUIT_CHAR:
-                        Flag_Quit = 1;
-                        break;
-                }
+            if (!handle_arrow(&ch)) {
+                handle_ascii(ch);
             }
         }
     } while (!Flag_Quit);
+    // set the quit, bypass OR logic
     Next = carcade_quit;
     return NULL;
 }
@@ -203,20 +217,23 @@ static inline void paint_current_board(void) {
     *(buf++) = '\n';
     *buf = '\0';
     // refresh if needed
-    if (Flag_Refresh) {
+    Count_Since_Refresh += Data->force_refresh ? 1 : 0;
+    if (Count_Since_Refresh >= Data->refresh_threshold) {
         clear();
         endwin();
         initscr();
         noecho();
         clear();
-        Flag_Refresh = 0;
+        Count_Since_Refresh = 0;
     }
     // add the board and the scoreboard
     mvaddnstr(0, 0, Data->board, Data->board_size);
     mvaddstr(Data->board_lines, 0, left);
     // refresh curses window and clear the local board buffer
     refresh();
-    clear_board_contents();
+    if (Data->clear_board_buffer) {
+        clear_board_contents();
+    }
 }
 
 
@@ -236,6 +253,8 @@ void default_data(struct carcade_t* data) {
     data->horizontal_char = DEFAULT_HORIZONTAL_CHAR;
     data->vertical_char = DEFAULT_VERTICAL_CHAR;
     data->clear_char = DEFAULT_CLEAR_CHAR;
+    data->force_refresh = DEFAULT_FORCE_REFRESH;
+    data->ORkeys = DEFAULT_ORKEYS;
     data->title[0] = '\0'; 
     data->initialize = NULL;
     data->reset = NULL;
@@ -253,7 +272,6 @@ int start_carcade(struct carcade_t* data) {
     // indicate not running
     Flag_Running = 0;
     Flag_Quit = 0;
-    Flag_Refresh = 0;
 
     // set and verify data
     Data = data;
@@ -264,9 +282,6 @@ int start_carcade(struct carcade_t* data) {
             pthread_create(&Key_Thread, 0, get_keys, 0)) {
         return CARCADE_GAME_QUIT;
     }
-    // setup curses screen
-    initscr();
-    noecho();
     
     // seed random
     srand(time(0) ^ getpid());
@@ -277,6 +292,11 @@ int start_carcade(struct carcade_t* data) {
     Data->board_size = CHAR_BOARD_SIZE(Data->width, Data->height);
     Data->skip_board_chars = SKIP_BOARD_CHARS(Data->width);
     Data->delay = UDELAY(Data->speed);
+    Data->refresh_threshold = REFRESH_THRESHOLD(Data->speed);
+    
+    // setup curses screen
+    initscr();
+    noecho();
     
     // initialize the board and the game specific data
     initialize_board();
@@ -290,6 +310,7 @@ int new_game(void) {
     }
     // reset score, can overwrite later if needed
     Data->score = 0;
+    clear_board_contents();
     // invoke reset if non-null
     if (Data->reset) {
         (*Data->reset)();
@@ -299,6 +320,7 @@ int new_game(void) {
     // set the local next key and indicate to thread the game is now running
     Next = Data->key;
     Flag_Running = 1;
+    Count_Since_Refresh = Data->refresh_threshold * 9 / 10;
     return 0;
 }
 
@@ -311,6 +333,11 @@ void random_location_bound(struct location_t* loc, int row, int col) {
 // sets a random location
 void random_location(struct location_t* loc) {
     random_location_bound(loc, 0, 0);
+}
+
+// clears the current keystroke value, reset logic
+void clear_keystroke(void) {
+    Next = 0;
 }
 
 // paints a single character on the board
@@ -359,6 +386,12 @@ int game_over(void) {
     Flag_Running = 0;
     // fill in the quit buffer with the special character
     sprintf(quit_buf, QUIT_MESSAGE_FORMAT, CARCADE_QUIT_CHAR);
+    // clear the board before adding to it
+    clear_board_contents();
+    // invoke the optional game over function
+    if (Data->over) {
+        (*Data->over)();
+    }
     // paint the three messages on three separate lines
     paint_center_text(line, GAME_OVER_MESSAGE);
     paint_center_text(line + 1, quit_buf);
@@ -380,6 +413,8 @@ void stop_carcade(void) {
     Flag_Quit = 1;
     // wait for thread to join up
     pthread_join(Key_Thread, 0);
+    // clear the board before adding to it
+    clear_board_contents();
     // invoke the stop function if non-null
     if (Data->stop) {
         (*Data->stop)();
