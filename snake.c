@@ -182,9 +182,11 @@ int new_snake(struct carcade_t* data, int argc, char** argv) {
             snake.food_char = *argv[++i];
         }
     }
-    if (snake.head_char == snake.body_char || snake.head_char == Data->clear_char ||
+    if (!snake.head_char || !snake.body_char || !snake.food_char ||
+            snake.head_char == snake.body_char || snake.head_char == Data->clear_char ||
             snake.body_char == snake.food_char || snake.body_char == Data->clear_char ||
             snake.food_char == snake.head_char || snake.food_char == Data->clear_char) {
+        printf("error: something went wrong with the snake arguments\n");
         return CARCADE_GAME_QUIT;
     }
     // set the title and function pointer data
