@@ -103,7 +103,12 @@ static void initialize_board(void) {
 // updates Next for the given key
 static inline void key_pressed(enum e_keystroke key, enum e_keystroke clear) {
     if (Data->ORkeys) {
-        Next = (Next & clear) | key;
+        if (Data->single_key) {
+            Next = (Next & clear) | key;
+        }
+        else {
+            Next |= key;
+        }
     }
     else {
         Next = key;
@@ -311,6 +316,7 @@ void set_data(struct carcade_t* data, int argc, char** argv) {
     data->clear_char = DEFAULT_CLEAR_CHAR;
     data->force_refresh = DEFAULT_FORCE_REFRESH;
     data->ORkeys = DEFAULT_ORKEYS;
+    data->single_key = DEFAULT_SINGLE_KEY;
     data->title[0] = '\0'; 
     data->initialize = NULL;
     data->reset = NULL;
@@ -395,7 +401,6 @@ int start_carcade(struct carcade_t* data) {
     Data->line_width = CHAR_BOARD_WIDTH(Data->width);
     Data->board_size = CHAR_BOARD_SIZE(Data->width, Data->height);
     Data->skip_board_chars = SKIP_BOARD_CHARS(Data->width);
-    Data->delay = UDELAY(Data->speed);
     
     // setup curses screen
     initscr();
@@ -483,7 +488,7 @@ int paint(void) {
 #ifdef SLOW_MODE
         usleep(1000000 * SLOW_SLEEP_SEC);
 #else
-        usleep(Data->delay);
+        usleep(UDELAY(Data->speed));
 #endif
     }
     return ret;

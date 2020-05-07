@@ -51,6 +51,7 @@
 #define KEEP_SCORE_ARG                           "-freeplay"
 #define DEFAULT_KEEP_SCORE                        1 // true
 #define DEFAULT_ORKEYS                            0 // false -> single player
+#define DEFAULT_SINGLE_KEY                        1 // true
 #define DEFAULT_CLEAR_BOARD_BUFFER                1 // true
 
 // the height of the title characters and horizontal border, width of vertical
@@ -175,9 +176,6 @@ struct carcade_t {
     // the amount of chars to skip before the board
     int skip_board_chars;
 
-    // the delay time in microsecions
-    useconds_t delay;
-
     // bool to indicate if refreshes are forced
     int force_refresh;
 
@@ -189,6 +187,9 @@ struct carcade_t {
     // bool to indicate if keystrokes should be ORed together
     // may be useful for multiplayer with multiple keys pressed per paint period
     int ORkeys;
+    // bool to indicate if only key direction is accounted for... pressing right
+    // then left results in left only
+    int single_key;
 
     // title and gameplay text
     char title[MIN_WIDTH];

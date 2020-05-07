@@ -5,6 +5,7 @@
 
 
 #include "carcade.h"
+#include "chopper.h"
 #include "snake.h"
 #include "tron.h"
 #include <ncurses.h>
@@ -23,12 +24,16 @@ static void print_help(void) {
    printf("help \n");
    print_carcade_help();
    printf("\nto play any of the following games specify its name as the first argument\n\n");
+   print_chopper_help();
    print_snake_help();
    print_tron_help();
 }
 
 static int initialize_game(struct carcade_t* data, int argc, char** argv) {
    if (argc > 1) {
+       if (!strcmp(argv[1], CHOPPER_ARG)) {
+           return new_chopper(data, argc, argv);
+       }
        if (!strcmp(argv[1], SNAKE_ARG)) {
            return new_snake(data, argc, argv);
        }

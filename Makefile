@@ -8,6 +8,7 @@ all:
 		-lpthread \
 		-lncurses \
 		carcade.h carcade.c \
+		chopper.h chopper.c \
 		snake.h snake.c \
 		tron.h tron.c \
 		main.c
