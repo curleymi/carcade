@@ -43,61 +43,61 @@ static pthread_t Key_Thread;
 
 
 // adds the title to the data board, returns the pointer to the next row
-static char* set_title(void) {
-    char* brd = Data->board;
+static int set_title(void) {
+    int col = 0;
     int title_len = strlen(Data->title);
     // title in the middle
     int title_start = (Data->width / 2) - (title_len / 2);
     // board has edges so add the leading one
-    *(brd++) = Data->title_char;
+    mvaddch(0, col++, Data->title_char);
     // fill in title characters until the title string
     for (int i = 0; i < Data->width; i++) {
         if (i == title_start) {
-            memcpy(brd, Data->title, title_len);
-            brd += title_len;
+            mvaddstr(0, col, Data->title);
+            col += title_len;
             i += title_len - 1;
         }
         else {
-            *(brd++) = Data->title_char;
+            mvaddch(0, col++, Data->title_char);
         }
     }
-    // add the trailing edge and newline
-    *(brd++) = Data->title_char;
-    *(brd++) = '\n';
-    return brd;
+    // add the trailing edge
+    mvaddch(0, col, Data->title_char);
+    return 1;
 }
 
 // adds the horizontal border to the given board, returns the next row
-static char* append_horizontal_border(char* brd) {
+static int append_horizontal_border(int line) {
+    int col = 0;
     // add the left corner
-    *(brd++) = Data->corner_char;
+    mvaddch(line, col++, Data->corner_char);
     // fill in the horizontal border
     for (int i = 0; i < Data->width; i++) {
-        *(brd++) = Data->horizontal_char;
+        mvaddch(line, col++, Data->horizontal_char);
     }
-    // add the right corner and newline
-    *(brd++) = Data->corner_char;
-    *(brd++) = '\n';
-    return brd;
+    // add the right corner
+    mvaddch(line, col, Data->corner_char);
+    return line + 1;
 }
 
 // initializes the board
 static void initialize_board(void) {
     // set the title
-    char* brd = set_title();
+    int col;
+    int line = set_title();
     // append the border below the title
-    brd = append_horizontal_border(brd);
-    // eppend the start and end vertical borders for each row
+    line = append_horizontal_border(line);
+    // append the start/end vertical borders for each row and clear filler
     for (int i = 0; i < Data->height; i++) {
-        *(brd++) = Data->vertical_char;
+        col = 0;
+        mvaddch(line, col++, Data->vertical_char);
         for (int j = 0; j < Data->width; j++) {
-            *(brd++) = Data->clear_char;
+            mvaddch(line, col++, Data->clear_char);
         }
-        *(brd++) = Data->vertical_char;
-        *(brd++) = '\n';
+        mvaddch(line++, col, Data->vertical_char);
     }
     // append the border below the board
-    append_horizontal_border(brd);
+    append_horizontal_border(line);
 }
 
 // updates Next for the given key
@@ -188,35 +188,13 @@ static inline enum e_keystroke next_key(void) {
 // clears the active gameboard
 static inline void clear_board_contents(void) {
     // skip over initial characters
-    char* brd = Data->board + Data->skip_board_chars + CHAR_BORDER_WIDTH;
+    int first_line = CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT;
     // go through each row filling in the designated clear chars
     for (int row = 0; row < Data->height; row++) {
         for (int col = 0; col < Data->width; col++) {
-            *(brd++) = Data->clear_char;
+            mvaddch(first_line + row, CHAR_BORDER_WIDTH + col, Data->clear_char);
         }
-        // skip over the edges and newline
-        brd += (CHAR_BORDER_WIDTH * 2) + 1;
     }
-}
-
-// returns the pointer to the character at the location
-static inline char* board_char(struct location_t* loc) {
-    return Data->board + Data->skip_board_chars +
-        (Data->line_width * loc->row) +
-        loc->col + CHAR_BORDER_WIDTH;
-
-}
-
-// refreshes the entire curses window
-static inline void force_refresh_curses(void) {
-    clear();
-    endwin();
-    initscr();
-    noecho();
-    curs_set(0);
-    clear();
-    Count_Since_Refresh = 0;
-    Flag_Refresh = 0;
 }
 
 // paints the current contents of the board to the console
@@ -248,19 +226,10 @@ static inline void paint_current_board(void) {
     buf += right_len;
     *(buf++) = '\n';
     *buf = '\0';
-    // refresh if needed
-    if (Flag_Refresh ||
-            (Data->force_refresh && Count_Since_Refresh++ > FORCE_REFRESH_COUNT(Data->force_refresh, Data->speed))) {
-        force_refresh_curses();
-    }
-    // add the board and the scoreboard
-    mvaddnstr(0, 0, Data->board, Data->board_size);
-    mvaddstr(Data->board_lines, 0, left);
-    // refresh curses window and clear the local board buffer
+    // update the scoreboard
+    mvaddstr(CHAR_BOARD_HEIGHT(Data->height), 0, left);
+    // refresh curses window
     refresh();
-    if (Data->clear_board_buffer) {
-        clear_board_contents();
-    }
 }
 
 // gets the first character and clears the input buffer if many keys are clicked
@@ -287,11 +256,6 @@ void print_carcade_help(void) {
             HEIGHT_ARG        "\t\tint  - the game height between %d and %d\n\t"
             SPEED_ARG         "\t\tint  - the game speed between %d and %d\n\t"
             KEEP_SCORE_ARG      "\t     - disable score keeping\n\t"
-            FORCE_REFRESH_ARG "\t\tint  - force a new render of the game every %d-%d seconds...\n\t"
-                              "\t\t     - lower values may result in choppy/degraded performance\n\t"
-                              "\t\t         NOTE: if omitted the game may have stray characters\n\t"
-                              "\t\t           (especially at high speeds) to force a manual refresh\n\t"
-                              "\t\t           of the screen press \'%c\' during gameplay\n\t"
             TITLE_CHAR_ARG    "\t\tchar - the title style\n\t"
             CORNER_CHAR_ARG   "\t\tchar - the corner style\n\t"
             HORIZONTAL_CHAR_ARG "\tchar - the horizontal border style\n\t"
@@ -315,7 +279,6 @@ void set_data(struct carcade_t* data, int argc, char** argv) {
     data->horizontal_char = DEFAULT_HORIZONTAL_CHAR;
     data->vertical_char = DEFAULT_VERTICAL_CHAR;
     data->clear_char = DEFAULT_CLEAR_CHAR;
-    data->force_refresh = DEFAULT_FORCE_REFRESH;
     data->ORkeys = DEFAULT_ORKEYS;
     data->single_key = DEFAULT_SINGLE_KEY;
     data->title[0] = '\0'; 
@@ -331,28 +294,25 @@ void set_data(struct carcade_t* data, int argc, char** argv) {
             if (!strcmp(argv[i], WIDTH_ARG)) {
                 data->width = atoi(argv[++i]);
             }
-            else if (!strcmp(argv[i], HEIGHT_ARG)) {
+            if (!strcmp(argv[i], HEIGHT_ARG)) {
                 data->height = atoi(argv[++i]);
             }
-            else if (!strcmp(argv[i], SPEED_ARG)) {
+            if (!strcmp(argv[i], SPEED_ARG)) {
                 data->speed = atoi(argv[++i]);
             }
-            else if (!strcmp(argv[i], FORCE_REFRESH_ARG)) {
-                data->force_refresh = atoi(argv[++i]);
-            }
-            else if (!strcmp(argv[i], TITLE_CHAR_ARG)) {
+            if (!strcmp(argv[i], TITLE_CHAR_ARG)) {
                 data->title_char = *argv[++i];
             }
-            else if (!strcmp(argv[i], CORNER_CHAR_ARG)) {
+            if (!strcmp(argv[i], CORNER_CHAR_ARG)) {
                 data->corner_char = *argv[++i];
             }
-            else if (!strcmp(argv[i], HORIZONTAL_CHAR_ARG)) {
+            if (!strcmp(argv[i], HORIZONTAL_CHAR_ARG)) {
                 data->horizontal_char = *argv[++i];
             }
-            else if (!strcmp(argv[i], VERTICAL_CHAR_ARG)) {
+            if (!strcmp(argv[i], VERTICAL_CHAR_ARG)) {
                 data->vertical_char = *argv[++i];
             }
-            else if (!strcmp(argv[i], CLEAR_CHAR_ARG)) {
+            if (!strcmp(argv[i], CLEAR_CHAR_ARG)) {
                 data->clear_char = *argv[++i];
             }
         }
@@ -383,9 +343,7 @@ int start_carcade(struct carcade_t* data) {
             !Data->horizontal_char || !Data->vertical_char || !Data->clear_char ||
             Data->width < MIN_WIDTH || Data->width > MAX_WIDTH ||
             Data->height < MIN_HEIGHT || Data->height > MAX_HEIGHT ||
-            Data->speed < MIN_SPEED || Data->speed > MAX_SPEED ||
-            Data->force_refresh < MIN_FORCE_REFRESH ||
-            Data->force_refresh > MAX_FORCE_REFRESH) {
+            Data->speed < MIN_SPEED || Data->speed > MAX_SPEED) {
         printf("error: something went wrong with specified metrics\n");
         return CARCADE_GAME_QUIT;
     }
@@ -396,12 +354,6 @@ int start_carcade(struct carcade_t* data) {
     
     // seed random
     srand(time(0) ^ getpid());
-    
-    // set the new data
-    Data->board_lines = CHAR_BOARD_HEIGHT(Data->height);
-    Data->line_width = CHAR_BOARD_WIDTH(Data->width);
-    Data->board_size = CHAR_BOARD_SIZE(Data->width, Data->height);
-    Data->skip_board_chars = SKIP_BOARD_CHARS(Data->width);
     
     // setup curses screen
     initscr();
@@ -454,12 +406,14 @@ void clear_keystroke(void) {
 
 // paints a single character on the board
 void paint_char(struct location_t* loc, char c) {
-    *board_char(loc) = c;
+    mvaddch(CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT + loc->row,
+            CHAR_BORDER_WIDTH + loc->col, c);
 }
 
 // returns the painted character at the location
 char painted_char(struct location_t* loc) {
-    return *board_char(loc);
+    return A_CHARTEXT & mvinch(CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT + loc->row,
+            CHAR_BORDER_WIDTH + loc->col);
 }
 
 // adds the given text on the line in the center of the board
@@ -467,13 +421,8 @@ void paint_center_text(int line, const char* str) {
     // only paint if text fits
     int len = strlen(str);
     if (len <= Data->width) {
-        // get the center location at the given line
-        struct location_t loc = { line, (Data->width / 2) - (len / 2) };
-        // add all the characters
-        for (int i = 0; i < len; i++) {
-            paint_char(&loc, str[i]);
-            loc.col++;
-        }
+        mvaddstr(CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT + line,
+                (Data->width / 2) - (len / 2), str);
     }
 }
 
@@ -481,6 +430,10 @@ void paint_center_text(int line, const char* str) {
 int paint(void) {
     if (Flag_Quit || Flag_Kill_Thread) {
         return CARCADE_GAME_QUIT;
+    }
+    // clear the board if specified
+    if (Data->clear_board_buffer) {
+        clear_board_contents();
     }
     // make the move, move can never be null
     int ret = (*Data->move)(next_key());

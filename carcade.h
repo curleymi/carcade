@@ -32,8 +32,6 @@
 #define DEFAULT_HEIGHT                            15
 #define SPEED_ARG                                 "-s"
 #define DEFAULT_SPEED                             1
-#define FORCE_REFRESH_ARG                        "-force"
-#define DEFAULT_FORCE_REFRESH                     0
 
 // paint defaults
 #define TITLE_CHAR_ARG                           "-title"
@@ -60,28 +58,15 @@
 #define CHAR_BORDER_WIDTH                         1
 #define CHAR_BORDER_HEIGHT                        1
 
-// macro - returns the number of characters in the width of the board
-// 2 vertical chars + newline
-#define CHAR_BOARD_WIDTH(WIDTH) (WIDTH + (CHAR_BORDER_WIDTH * 2) + 1)
-
 // macro - returns the number of characters in the height of the board
 // 2 horizontal borders + title
 #define CHAR_BOARD_HEIGHT(HEIGHT) (HEIGHT + CHAR_TITLE_HEIGHT + (CHAR_BORDER_HEIGHT * 2))
-
-// macro - returns the total number of characters in the board
-#define CHAR_BOARD_SIZE(WIDTH, HEIGHT) (CHAR_BOARD_WIDTH(WIDTH) * CHAR_BOARD_HEIGHT(HEIGHT))
-
-// macro - returns the number of characters to skip before the first valid row
-#define SKIP_BOARD_CHARS(WIDTH) (CHAR_BOARD_WIDTH(WIDTH) * (CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT))
 
 // macro - returns the microseconds to sleep according to speed
 #define UDELAY(SPEED) (150000 / SPEED)
 
 // the timeout for getting a character, 1/10th second
 #define GETCH_TIMEOUT                             1
-
-// the amount of times the screen is updated before a refresh is forced
-#define FORCE_REFRESH_COUNT(TIME, SPEED) ((TIME * 1000000) / UDELAY(SPEED))
 
 
 // the quit and continue string
@@ -159,30 +144,16 @@ struct carcade_t {
     char horizontal_char; // chars on top/bottom
     char vertical_char;   // chars on sides
     char clear_char;      // chars in the middle
-    char board[CHAR_BOARD_SIZE(MAX_WIDTH, MAX_HEIGHT) + CHAR_BOARD_WIDTH(MAX_WIDTH)];
 
     // ----- game specific data, no defualts must be set on initialize -----
     // bool to keep score and if so the current score
     int keep_score;
     int score;
 
-    // the height and width of the board in lines
-    int board_lines;
-    int line_width;
-
-    // the total chars of the board (not necessarily the max as above)
-    int board_size;
-
-    // the amount of chars to skip before the board
-    int skip_board_chars;
-
-    // bool to indicate if refreshes are forced
-    int force_refresh;
-
     // bool, indicates if the board is completely cleared after each paint
     int clear_board_buffer;
 
-    // maintain state of a previous keystroke
+    // an initial set keystroke for a new game
     enum e_keystroke key;
     // bool to indicate if keystrokes should be ORed together
     // may be useful for multiplayer with multiple keys pressed per paint period
