@@ -18,11 +18,8 @@
 // flag indicates if the game is running and if game has been quit
 static int Flag_Running;
 static int Flag_Quit;
-static int Flag_Refresh;
 static int Flag_Kill_Thread;
-
-// the ticks since the last refresh
-static unsigned int Count_Since_Refresh;
+static int Flag_Paint_Count;
 
 // the thread-shared next keystroke to process
 // note:
@@ -82,6 +79,8 @@ static int append_horizontal_border(int line) {
 
 // initializes the board
 static void initialize_board(void) {
+    // clear the whole screen
+    clear();
     // set the title
     int col;
     int line = set_title();
@@ -154,7 +153,7 @@ static inline void handle_ascii(char ch) {
             key_pressed(ascii_left, ascii_clear);
             break;
         case CARCADE_REFRESH_CHAR:
-            Flag_Refresh = 1;
+            Flag_Paint_Count = Data->speed;
             break;
         case CARCADE_QUIT_CHAR:
             Flag_Quit = 1;
@@ -230,6 +229,14 @@ static inline void paint_current_board(void) {
     mvaddstr(CHAR_BOARD_HEIGHT(Data->height), 0, left);
     // refresh curses window
     refresh();
+    doupdate();
+    if (Flag_Paint_Count++ >= Data->speed) {
+        endwin();
+        initscr();
+        refresh();
+        doupdate();
+        Flag_Paint_Count = 0;
+    }
 }
 
 // gets the first character and clears the input buffer if many keys are clicked
@@ -262,8 +269,7 @@ void print_carcade_help(void) {
             VERTICAL_CHAR_ARG   "\tchar - the vertical border style\n\t"
             CLEAR_CHAR_ARG    "\t\tchar - the board fill style\n\n",
             MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT,
-            MIN_SPEED, MAX_SPEED, MIN_FORCE_REFRESH, MAX_FORCE_REFRESH,
-            CARCADE_REFRESH_CHAR);
+            MIN_SPEED, MAX_SPEED);
 }
 
 // sets the default data
@@ -325,9 +331,6 @@ void set_data(struct carcade_t* data, int argc, char** argv) {
 
 // starts the arcade. allocates resources
 int start_carcade(struct carcade_t* data) {
-    // ensure normal terminal
-    system("stty sane");
-
     // indicate not running
     Flag_Running = 0;
     Flag_Quit = 0;
@@ -360,7 +363,7 @@ int start_carcade(struct carcade_t* data) {
     noecho();
     curs_set(0);
     
-    // initialize the board and the game specific data
+    // initialize the game specific data
     initialize_board();
     return Data->initialize ? (*Data->initialize)(Data) : 0;
 }
@@ -372,6 +375,10 @@ int new_game(void) {
     }
     // reset score, can overwrite later if needed
     Data->score = 0;
+    Next = Data->key;
+    Flag_Quit = 0;
+    Flag_Running = 1;
+    Flag_Paint_Count = 0;
     clear_board_contents();
     // invoke reset if non-null
     if (Data->reset) {
@@ -379,12 +386,6 @@ int new_game(void) {
     }
     // paint the board after resetting
     paint_current_board();
-    // set the local next key and indicate to thread the game is now running
-    Next = Data->key;
-    Flag_Quit = 0;
-    Flag_Running = 1;
-    Flag_Refresh = 0;
-    Count_Since_Refresh = 0;
     return 0;
 }
 
@@ -406,8 +407,11 @@ void clear_keystroke(void) {
 
 // paints a single character on the board
 void paint_char(struct location_t* loc, char c) {
-    mvaddch(CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT + loc->row,
-            CHAR_BORDER_WIDTH + loc->col, c);
+    if (loc->row >= 0 && loc->row < Data->height &&
+            loc->col >= 0 && loc->col < Data->width) {
+        mvaddch(CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT + loc->row,
+                CHAR_BORDER_WIDTH + loc->col, c);
+    }
 }
 
 // returns the painted character at the location
@@ -422,7 +426,7 @@ void paint_center_text(int line, const char* str) {
     int len = strlen(str);
     if (len <= Data->width) {
         mvaddstr(CHAR_TITLE_HEIGHT + CHAR_BORDER_HEIGHT + line,
-                (Data->width / 2) - (len / 2), str);
+                CHAR_BORDER_WIDTH + (Data->width / 2) - (len / 2), str);
     }
 }
 
@@ -503,6 +507,8 @@ void stop_carcade(void) {
     // clear the screen and end the curses window
     clear();
     refresh();
+    doupdate();
+    curs_set(1);
     endwin();
 }
 

@@ -17,13 +17,11 @@
 
 // metric bounds
 #define MIN_WIDTH                                 23
-#define MAX_WIDTH                                 128
+#define MAX_WIDTH                                 120
 #define MIN_HEIGHT                                6
-#define MAX_HEIGHT                                48
+#define MAX_HEIGHT                                44
 #define MIN_SPEED                                 1
 #define MAX_SPEED                                 10
-#define MIN_FORCE_REFRESH                         0
-#define MAX_FORCE_REFRESH                         30
 
 // default metrics
 #define WIDTH_ARG                                 "-w"

@@ -86,7 +86,8 @@ static inline int inc_metric(time_t start, int freq) {
 
 // moves the chopper and the obstacles
 static int chopper_move(enum e_keystroke next) {
-    int ob_height;
+    int ret;
+    int ob_height = -1;
     int ob_pos = -1;
     struct location_t loc;
     // if its a quit key do nothing
@@ -100,50 +101,54 @@ static int chopper_move(enum e_keystroke next) {
         chopper.edge_obs[(chopper.offset + Data->width - 1) % Data->width] = -1;
         chopper.count = 0;
     }
-    // advance all obstacles
-    ob_height = chopper.edge_obs[(chopper.offset + Data->width - 1) % Data->width];
-    // add new obstacle
-    if (ob_height < 0) {
-        if (chopper.edge_obs[chopper.offset] < 0) {
-            chopper.position.row = Data->height / 2;
-            chopper.last_level = time(0);
-            chopper.last_ob = time(0);
-            if (Data->height - chopper.level > 5) {
-                chopper.level++;
+    else {
+        // advance all obstacles
+        ob_height = chopper.edge_obs[(chopper.offset + Data->width - 1) % Data->width];
+        // add new obstacle
+        if (ob_height < 0) {
+            if (chopper.edge_obs[chopper.offset] < 0) {
+                chopper.position.row = Data->height / 2;
+                chopper.last_level = time(0);
+                chopper.last_ob = time(0);
+                if (Data->height - chopper.level > 5 || chopper.peak_width > 1) {
+                    if (Data->height - chopper.level > 5) {
+                        chopper.level++;
+                    }
+                    if (chopper.peak_width > 1) {
+                        chopper.peak_width--;
+                    }
+                }
+                else if (Data->speed < MAX_SPEED) {
+                    chopper.level = Data->height / 3;
+                    chopper.peak_width = chopper.orig_peak_width;
+                    Data->speed++;
+                }
+                ob_height = rand() % (chopper.level + 1);
+                chopper.count = 0;
+                Data->score++;
             }
-            else if (chopper.peak_width > 1) {
-                chopper.peak_width--;
-            }
-            else if (Data->speed < MAX_SPEED) {
-                chopper.level = Data->height / 3;
-                chopper.peak_width = chopper.orig_peak_width;
-                Data->speed++;
-            }
-            ob_height = rand() % (chopper.level + 1);
+        }
+        // change height of previous obstacle by 1
+        else if (++chopper.count >= chopper.peak_width) {
             chopper.count = 0;
-            Data->score++;
+            switch (rand() % 3) {
+                case 0:
+                    if (ob_height > 0) {
+                        ob_height--;
+                    }
+                    break;
+                case 2:
+                    if (ob_height < chopper.level) {
+                        ob_height++;
+                    }
+                    break;
+            }
         }
-    }
-    // change height of previous obstacle by 1
-    else if (++chopper.count >= chopper.peak_width) {
-        chopper.count = 0;
-        switch (rand() % 3) {
-            case 0:
-                if (ob_height > 0) {
-                    ob_height--;
-                }
-                break;
-            case 2:
-                if (ob_height < chopper.level) {
-                    ob_height++;
-                }
-                break;
+        // check to add a new middle obstacle
+        if (ob_height >= 0 && inc_metric(chopper.last_ob, chopper.ob_freq)) {
+            ob_pos = rand() % (Data->height - chopper.level);
+            chopper.last_ob = time(0);
         }
-    }
-    // check to add a new middle obstacle
-    if (inc_metric(chopper.last_ob, chopper.ob_freq)) {
-        ob_pos = rand() % (Data->height - chopper.level);
-        chopper.last_ob = time(0);
     }
     // increment the obstacle locations and add them in
     chopper.offset = (chopper.offset + 1) % Data->width;
@@ -166,13 +171,11 @@ static int chopper_move(enum e_keystroke next) {
         }
     }
     // move the chopper
-    if (process_position(next) == CARCADE_GAME_OVER) {
-        return CARCADE_GAME_OVER;
-    }
+    ret = process_position(next);
     // paint the chopper
     paint_char(&chopper.position, chopper.chopper_char);
     clear_keystroke();
-    return 0;
+    return ret;
 }
 
 
@@ -197,10 +200,10 @@ int new_chopper(struct carcade_t* data, int argc, char** argv) {
     Data = data;
     // TODO defaults
     chopper.chopper_char = '>';
-    chopper.ob_char = '?';
+    chopper.ob_char = 'X';
     chopper.orig_ob_freq = 3;
-    chopper.level_freq = 10;
-    chopper.orig_peak_width = 7;
+    chopper.level_freq = 30;
+    chopper.orig_peak_width = 3;
     chopper.orig_speed = Data->speed;
     // parse out custom arguments
     if (!chopper.chopper_char || !chopper.ob_char ||

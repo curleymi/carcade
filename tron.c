@@ -88,18 +88,21 @@ static int tron_reset(void) {
     tron.player1_loc.row = y;
     tron.player1_loc.col = x;
     tron.player2_loc.row = y;
-    tron.player2_loc.col = Data->width - x;
+    tron.player2_loc.col = Data->width - 1 - x;
+    *tron.over_message = '\0';
+    // clear keys
+    Data->key = arrow_up | ascii_up;
+    clear_keystroke();
     // paint the start
     paint_char(&tron.player1_loc, tron.player1_char);
     paint_char(&tron.player2_loc, tron.player2_char);
-    Data->key = arrow_up | ascii_up;
-    *tron.over_message = '\0';
     return 0;
 }
 
 
 // moves the tron players in their respective directions
 static int tron_move(enum e_keystroke next) {
+    int ret = 0;
     int res1;
     int res2;
     enum e_keystroke p1_new_dir;
@@ -121,17 +124,17 @@ static int tron_move(enum e_keystroke next) {
     if ((res1 == CARCADE_GAME_OVER && res2 == CARCADE_GAME_OVER) ||
             p1_new_loc.row == p2_new_loc.row && p1_new_loc.col == p2_new_loc.col) {
         *tron.over_message = '\0';
-        return CARCADE_GAME_OVER;
+        ret = CARCADE_GAME_OVER;
     }
-    if (res1 == CARCADE_GAME_OVER) {
+    else if (res1 == CARCADE_GAME_OVER) {
         memcpy(tron.over_message, TRON_P2_WIN_MESSAGE, strlen(TRON_P2_WIN_MESSAGE) + 1);
-        return CARCADE_GAME_OVER;
+        ret = CARCADE_GAME_OVER;
     }
-    if (res2 == CARCADE_GAME_OVER) {
+    else if (res2 == CARCADE_GAME_OVER) {
         memcpy(tron.over_message, TRON_P1_WIN_MESSAGE, strlen(TRON_P1_WIN_MESSAGE) + 1);
-        return CARCADE_GAME_OVER;
+        ret = CARCADE_GAME_OVER;
     }
-    // both moves are valid paint over old positions
+    // paint over old positions
     paint_line(&tron.player1_loc, tron.player1_dir, p1_new_dir);
     paint_line(&tron.player2_loc, tron.player2_dir, p2_new_dir);
     // overwrite current positions
@@ -144,7 +147,7 @@ static int tron_move(enum e_keystroke next) {
     // paint new positions
     paint_char(&tron.player1_loc, tron.player1_char);
     paint_char(&tron.player2_loc, tron.player2_char);
-    return 0;
+    return ret;
 }
 
 // prints the winner if there is one

@@ -21,6 +21,7 @@ static struct snake_t {
     unsigned int length;
     unsigned int offset;
     unsigned int area;
+    enum e_keystroke dir;
     struct location_t food_loc;
     struct location_t locations[MAX_WIDTH * MAX_HEIGHT];
 } snake;
@@ -73,8 +74,11 @@ static inline int next_location(struct location_t* head,
 static int snake_reset(void) {
     // reset the snake data
     snake.offset = 0;
-    snake.length = Data->width / 5;
+    snake.length = 1;//(Data->width < Data->height ? Data->width : Data->height) / 5;
     snake.area = Data->width * Data->height;
+    // set the starting direction
+    snake.dir = arrow_right;
+    Data->key = snake.dir;
     // reset the locations
     for (int i = 0; i < snake.length; i++) {
         snake.locations[i].row = 0;
@@ -85,8 +89,6 @@ static int snake_reset(void) {
     // assign a random food spot anywhere where the snake is not right now
     random_location_bound(&snake.food_loc, 1, snake.length);
     paint_char(&snake.food_loc, snake.food_char);
-    // set the starting direction
-    Data->key = arrow_right;
     return 0;
 }
 
@@ -95,6 +97,7 @@ static int snake_reset(void) {
 static int snake_move(enum e_keystroke next) {
     struct location_t head;
     struct location_t* loc;
+    int ret = CARCADE_GAME_OVER;
     // if its a quit key do nothing
     if (next & carcade_quit) {
         return CARCADE_GAME_QUIT;
@@ -102,11 +105,11 @@ static int snake_move(enum e_keystroke next) {
     // can't double back, keep going the same direction if the next is
     // immediately backwards
     if (!next ||
-            (Data->key & (arrow_up | ascii_up)) && (next & (arrow_down | ascii_down)) ||
-            (Data->key & (arrow_down | ascii_down)) && (next & (arrow_up | ascii_up)) ||
-            (Data->key & (arrow_right | ascii_right)) && (next & (arrow_left | ascii_left)) ||
-            (Data->key & (arrow_left | ascii_left)) && (next & (arrow_right | ascii_right))) {
-        next = Data->key;
+            (snake.dir & (arrow_up | ascii_up)) && (next & (arrow_down | ascii_down)) ||
+            (snake.dir & (arrow_down | ascii_down)) && (next & (arrow_up | ascii_up)) ||
+            (snake.dir & (arrow_right | ascii_right)) && (next & (arrow_left | ascii_left)) ||
+            (snake.dir & (arrow_left | ascii_left)) && (next & (arrow_right | ascii_right))) {
+        next = snake.dir;
     }
     // make sure the next move does not end the game before continuing
     if (next_location(snake_head(), next, &head) != CARCADE_GAME_OVER) {
@@ -141,10 +144,10 @@ static int snake_move(enum e_keystroke next) {
         if (head.row != snake.food_loc.row || head.col != snake.food_loc.col) {
             paint_char(&head, snake.head_char);
         }
-        Data->key = next;
-        return 0;
+        snake.dir = next;
+        ret = 0;
     }
-    return CARCADE_GAME_OVER;
+    return ret;
 }
 
 
