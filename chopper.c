@@ -100,12 +100,12 @@ static int chopper_move(enum e_keystroke next) {
     }
     // check to increment level
     if (inc_metric(chopper.last_level, chopper.level_freq)) {
+        chopper.position.row = Data->height / 2;
+        chopper.edge_obs[(chopper.offset + Data->width - 1) % Data->width] = -1;
         chopper.last_level = time(0);
         chopper.last_ob = time(0);
-        if (Data->height - chopper.level > 5) {
-            chopper.level++;
-        }
-        else if (chopper.ob_freq > 1) {
+        chopper.count = 0;
+        if (chopper.ob_freq > 1) {
             chopper.ob_freq--;
         }
         else if (chopper.peak_width > 1) {
@@ -114,16 +114,21 @@ static int chopper_move(enum e_keystroke next) {
         else if (Data->speed < MAX_SPEED) {
             Data->speed++;
         }
-        Data->score++;
     }
     // same level, continue normal logic
-    else {
+    //else {
         // advance all obstacles
         ob_height = chopper.edge_obs[(chopper.offset + Data->width - 1) % Data->width];
         // add new obstacle
         if (ob_height < 0) {
-            ob_height = rand() % (chopper.level + 1);
-            chopper.count = 0;
+            if (chopper.edge_obs[chopper.offset] < 0) {
+                if (Data->height - chopper.level > 5) {
+                    chopper.level++;
+                }
+                ob_height = rand() % (chopper.level + 1);
+                chopper.count = 0;
+                Data->score++;
+            }
         }
         // change height of previous obstacle by 1
         else if (++chopper.count >= chopper.peak_width) {
@@ -166,7 +171,7 @@ static int chopper_move(enum e_keystroke next) {
                 paint_char(&loc, chopper.ob_char);
             }
         }
-    }
+    //}
     // move the chopper
     if (process_position(next) == CARCADE_GAME_OVER) {
         return CARCADE_GAME_OVER;
@@ -199,7 +204,7 @@ int new_chopper(struct carcade_t* data, int argc, char** argv) {
     Data = data;
     // TODO defaults
     chopper.chopper_char = '>';
-    chopper.ob_char = 'X';
+    chopper.ob_char = '?';
     chopper.orig_ob_freq = 3;
     chopper.level_freq = 10;
     chopper.orig_peak_width = 5;

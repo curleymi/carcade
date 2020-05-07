@@ -213,6 +213,7 @@ static inline void force_refresh_curses(void) {
     endwin();
     initscr();
     noecho();
+    curs_set(0);
     clear();
     Count_Since_Refresh = 0;
     Flag_Refresh = 0;
@@ -405,6 +406,7 @@ int start_carcade(struct carcade_t* data) {
     // setup curses screen
     initscr();
     noecho();
+    curs_set(0);
     
     // initialize the board and the game specific data
     initialize_board();
